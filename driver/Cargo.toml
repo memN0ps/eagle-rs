@@ -1,0 +1,36 @@
+[package]
+name = "driver"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+kernel-print = "0.1.0"
+kernel-alloc = "0.1.0"
+obfstr = "0.3.0"
+ntapi = "0.3.7"
+common = { path = "../common" }
+
+[dependencies.winapi]
+git = "https://github.com/Trantect/winapi-rs.git"
+branch = "feature/km"
+features = [
+    "wdm",
+    "ntstatus",
+]
+
+[build-dependencies]
+winreg = "0.10.1"
+failure = "0.1.8"
