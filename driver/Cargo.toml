@@ -20,7 +20,6 @@ panic = "abort"
 kernel-print = "0.1.0"
 kernel-alloc = "0.1.0"
 obfstr = "0.3.0"
-ntapi = "0.3.7"
 common = { path = "../common" }
 
 [dependencies.winapi]

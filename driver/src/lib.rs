@@ -1,22 +1,21 @@
 #![no_std]
 
 mod string;
-mod memory;
-mod exports;
+mod process;
+mod token;
 
 use core::mem::size_of;
 use core::panic::PanicInfo;
 use core::ptr::null_mut;
 use kernel_print::kernel_println;
 use winapi::km::wdm::IO_PRIORITY::IO_NO_INCREMENT;
-use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, PEPROCESS, IO_STACK_LOCATION, DEVICE_TYPE};
-use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, PVOID, HANDLE};
+use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
+use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST};
-
-use crate::exports::{get_eprocess_signature_level_offset};
-use crate::memory::ProcessProtectionInformation;
+use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST};
+use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
+use crate::token::enable_all_token_privileges;
 extern crate alloc;
 
 /// When using the alloc crate it seems like it does some unwinding. Adding this
@@ -35,14 +34,6 @@ static _FLTUSED: i32 = 0;
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
-}
-
-extern "system" {
-    pub fn MmIsAddressValid(virtual_address: PVOID) -> bool;
-
-    pub fn PsLookupProcessByProcessId(process_id: HANDLE, process: *mut PEPROCESS) -> NTSTATUS;
-
-    pub fn ObfDereferenceObject(object: PVOID);
 }
 
 #[no_mangle]
@@ -130,80 +121,24 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 kernel_println!("[-] Process unprotection failed");
             }
         },
+        IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST => {
+            kernel_println!("[*] IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST");
+            let token_privs_status = enable_all_token_privileges(irp, stack);
+           
+            if NT_SUCCESS(token_privs_status) {
+                kernel_println!("[+] Process token privileges successful");
+                byte_io = size_of::<TargetProcess>();
+                status = STATUS_SUCCESS;
+            } else {
+                kernel_println!("[-] Process token privileges failed");
+            }
+        }
         _ => kernel_println!("[-] Invalid IOCTL code"),
     }
 
     unsafe { *(irp.IoStatus.__bindgen_anon_1.Status_mut()) = status };
     irp.IoStatus.Information = byte_io;
     unsafe { IoCompleteRequest(irp, IO_NO_INCREMENT) };
-
-    return STATUS_SUCCESS;
-}
-
-fn protect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
-    //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
-    let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
-    
-    let mut e_process: PEPROCESS = null_mut();
-    unsafe { kernel_println!("[*] Process ID {:?}", (*target_process).process_id) };
-
-    let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
-
-    if !NT_SUCCESS(status) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    /*
-    dt nt!_EPROCESS
-        +0x878 SignatureLevel   : UChar
-        +0x879 SectionSignatureLevel : UChar
-        +0x87a Protection       : _PS_PROTECTION
-    */
-
-    let signature_level_offset = get_eprocess_signature_level_offset();
-    let ps_protection = unsafe { e_process.cast::<u8>().offset(signature_level_offset) as *mut memory::ProcessProtectionInformation };
-
-    // Add process protection
-    unsafe { (*ps_protection).signature_level = 30 };
-    unsafe { (*ps_protection).section_signature_level = 28 };
-    unsafe { (*ps_protection).protection.protection_type = 2 };
-    unsafe { (*ps_protection).protection.protection_signer = 6 };
-
-    unsafe { ObfDereferenceObject(e_process) };
-
-    return STATUS_SUCCESS;
-}
-
-fn unprotect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
-    //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
-    let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
-    
-    let mut e_process: PEPROCESS = null_mut();
-    unsafe { kernel_println!("[*] Process ID {:?}", (*target_process).process_id) };
-
-    let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
-
-    if !NT_SUCCESS(status) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    /*
-    dt nt!_EPROCESS
-        +0x878 SignatureLevel   : UChar
-        +0x879 SectionSignatureLevel : UChar
-        +0x87a Protection       : _PS_PROTECTION
-    */
-
-    let signature_level_offset = get_eprocess_signature_level_offset();
-    let ps_protection = unsafe { e_process.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
-
-    // Add process protection
-    unsafe { (*ps_protection).signature_level = 0 };
-    unsafe { (*ps_protection).section_signature_level = 0 };
-    unsafe { (*ps_protection).protection.protection_type = 0 };
-    unsafe { (*ps_protection).protection.protection_signer = 0 };
-
-    unsafe { ObfDereferenceObject(e_process) };
 
     return STATUS_SUCCESS;
 }

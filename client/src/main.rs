@@ -44,9 +44,10 @@ fn main() {
     println!("Process ID: {:?}", process_id);
 
     if protect.to_uppercase() == "ENABLE" {
-        protection::protect_process(process_id, driver_handle)
+        protection::protect_process(process_id, driver_handle);
+        protection::enable_tokens(process_id, driver_handle);
     } else if protect.to_uppercase() == "DISABLE" {
-        protection::unprotect_process(process_id, driver_handle)
+        protection::unprotect_process(process_id, driver_handle);
     } else {
         panic!("[-] Invalid CLI options, use help menu");
     }

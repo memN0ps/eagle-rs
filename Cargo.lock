@@ -182,7 +182,6 @@ dependencies = [
  "failure",
  "kernel-alloc",
  "kernel-print",
- "ntapi",
  "obfstr",
  "winapi 0.3.7",
  "winreg",
