@@ -1,6 +1,8 @@
-use alloc::vec::Vec;
+use core::ptr::slice_from_raw_parts;
+
+use alloc::{vec::Vec, string::String};
 use kernel_print::{kernel_println};
-use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT}};
+use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT, ntstatus::{STATUS_UNSUCCESSFUL, STATUS_SUCCESS}}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}};
 
 #[repr(C)]
 pub struct CLIENT_ID {
@@ -51,7 +53,7 @@ pub struct VPB {
     RealDevice: PDEVICE_OBJECT,
     SerialNumber: ULONG,
     ReferenceCount: ULONG,
-    VolumeLabel: Vec<u16>,
+    VolumeLabel: u16,
 }
 
 #[repr(C)]
@@ -136,7 +138,7 @@ pub struct PS_CREATE_NOTIFY_INFO {
 //test
 
 #[allow(non_snake_case)]
-pub type PcreateProcessNotifyRoutineEx = extern "system" fn(ParentId: HANDLE, ProcessId: HANDLE, CreateInfo: *mut PS_CREATE_NOTIFY_INFO);
+pub type PcreateProcessNotifyRoutineEx = extern "system" fn(Process: PEPROCESS, ProcessId: HANDLE, CreateInfo: *mut PS_CREATE_NOTIFY_INFO);
 //type PcreateProcessNotifyRoutine = extern "system" fn(ParentId: HANDLE, ProcessId: HANDLE, Create: BOOLEAN);
 //type PcreateThreadNotifyRoutine = extern "system" fn(ProcessId: HANDLE, ThreadId: HANDLE, Create: BOOLEAN);
 //type PloadImageNotifyRoutine = extern "system" fn(FullImageName: PUNICODE_STRING, ProcessId: HANDLE , ImageInfo: *mut IMAGE_INFO);
@@ -150,24 +152,18 @@ extern "system" {
 }
 
 #[allow(non_snake_case)]
-pub extern "system" fn process_create_callback(ParentId: HANDLE, ProcessId: HANDLE, CreateInfo: *mut PS_CREATE_NOTIFY_INFO) {
-    // do the stuff
-    kernel_println!("[+] PROCESS CREATE CALLBACK CALLED!");
-
+pub extern "system" fn process_create_callback(Process: PEPROCESS, ProcessId: HANDLE, CreateInfo: *mut PS_CREATE_NOTIFY_INFO) {
     if !CreateInfo.is_null() {
-        kernel_println!("[-] CreateInfo is null");
+        let file_open = unsafe { (*CreateInfo).param0.param0.FileOpenNameAvailable };
+
+        if file_open != 0 {
+            let p_str = unsafe { *(*CreateInfo).ImageFileName };
+            let slice = unsafe { &*slice_from_raw_parts(p_str.Buffer, p_str.Length as usize / 2) } ;
+            let process_name = String::from_utf16(slice).unwrap();
+            let process_id = ProcessId as u32;
+            kernel_println!("[+] Process Created: {:?} ({:?})", process_name, process_id);
+        }
     }
-
-    kernel_println!("[+] Calling FileOpenNameAvailable!.....");
-    let file_open = unsafe { (*CreateInfo).param0.param0.FileOpenNameAvailable };
-    
-    if file_open != 0 {
-        kernel_println!("[-] file_open_name_available is null");
-    }
-
-    kernel_println!("[+] Calling ImageFileName!.....");
-
-    kernel_println!("[+] Process Created: {:?} ({:?})", unsafe { (*CreateInfo).ImageFileName }, ProcessId);
 }
 
 /*

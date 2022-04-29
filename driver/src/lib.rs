@@ -11,7 +11,7 @@ use core::ptr::null_mut;
 use kernel_print::kernel_println;
 use winapi::km::wdm::IO_PRIORITY::IO_NO_INCREMENT;
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
-use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS};
+use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
 use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_PROCESS_NOTIFY_CALLBACK};
 use crate::callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx};
@@ -49,7 +49,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     driver.MajorFunction[IRP_MJ::CLOSE as usize] = Some(dispatch_create_close);
     driver.MajorFunction[IRP_MJ::DEVICE_CONTROL as usize] = Some(dispatch_device_control);
 
-    let device_name = create_unicode_string(obfstr::wide!("\\Device\\Dragon\0"));
+    let device_name = create_unicode_string(obfstr::wide!("\\Device\\Eagle\0"));
     let mut device_object: PDEVICE_OBJECT = null_mut();
     let mut status = unsafe { 
         IoCreateDevice(
@@ -68,7 +68,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
         return status;
     }
 
-    let symbolic_link = create_unicode_string(obfstr::wide!("\\??\\Dragon\0"));
+    let symbolic_link = create_unicode_string(obfstr::wide!("\\??\\Eagle\0"));
     status = unsafe { IoCreateSymbolicLink(&symbolic_link, &device_name) };
 
     if !NT_SUCCESS(status) {
@@ -76,21 +76,8 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
         return status;
     }
 
-
-    // TESTING
-
-    kernel_println!("[+] Registering callbacks........");
-
-    let status = unsafe { 
-        PsSetCreateProcessNotifyRoutineEx(process_create_callback as PcreateProcessNotifyRoutineEx, FALSE) 
-    };
-
-    if !NT_SUCCESS(status) {
-        kernel_println!("[-] Failed to call PsSetCreateProcessNotifyRoutineEx ({:#x})", status);
-        return status;
-    }
-
-    kernel_println!("[+] PsSetCreateProcessNotifyRoutineEx call finished");
+    //ProcessNotify (called when a process is created)
+    unsafe { PsSetCreateProcessNotifyRoutineEx(process_create_callback as PcreateProcessNotifyRoutineEx, FALSE) };
 
 
     return STATUS_SUCCESS;
@@ -182,8 +169,11 @@ pub extern "system" fn dispatch_create_close(_device_object: &mut DEVICE_OBJECT,
 }
 
 pub extern "system" fn driver_unload(driver: &mut DRIVER_OBJECT) {
-    let symbolic_link = create_unicode_string(obfstr::wide!("\\??\\Dragon\0"));
+    let symbolic_link = create_unicode_string(obfstr::wide!("\\??\\Eagle\0"));
     unsafe { IoDeleteSymbolicLink(&symbolic_link) };
     unsafe { IoDeleteDevice(driver.DeviceObject) };
+
+    // Remove Callbacks (or BSOD)
+    unsafe { PsSetCreateProcessNotifyRoutineEx(process_create_callback as PcreateProcessNotifyRoutineEx, TRUE) };
     kernel_println!("[+] Driver unloaded successfully!");
 }

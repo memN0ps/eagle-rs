@@ -127,6 +127,6 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://gamehacking.academy/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
-* https://discord.com/invite/rust-lang-community
+* https://discord.com/invite/rust-lang-community (Thanks to: Zuix, Nick12, kpreid and many others)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/

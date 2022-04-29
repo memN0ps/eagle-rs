@@ -24,7 +24,7 @@ fn main() {
     let protect = args.protection;
 
 
-    let file = CString::new("\\\\.\\Dragon").unwrap().into_raw() as *const i8;
+    let file = CString::new("\\\\.\\Eagle").unwrap().into_raw() as *const i8;
     let driver_handle = unsafe { 
         CreateFileA(
         file,
