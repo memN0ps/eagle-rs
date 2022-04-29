@@ -2,7 +2,7 @@ use sysinfo::{Pid, SystemExt, ProcessExt};
 use winapi::um::{fileapi::{CreateFileA, OPEN_EXISTING}, winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE}};
 use std::{ffi::CString, ptr::null_mut};
 use clap::Parser;
-mod protection;
+mod kernel_interface;
 
 /// Process Manipulation Tool
 #[derive(Parser, Debug)]
@@ -44,13 +44,15 @@ fn main() {
     println!("Process ID: {:?}", process_id);
 
     if protect.to_uppercase() == "ENABLE" {
-        protection::protect_process(process_id, driver_handle);
-        protection::enable_tokens(process_id, driver_handle);
+        kernel_interface::protect_process(process_id, driver_handle);
+        kernel_interface::enable_tokens(process_id, driver_handle);
     } else if protect.to_uppercase() == "DISABLE" {
-        protection::unprotect_process(process_id, driver_handle);
+        kernel_interface::unprotect_process(process_id, driver_handle);
+        kernel_interface::register_callbacks(process_id, driver_handle);
     } else {
         panic!("[-] Invalid CLI options, use help menu");
     }
+
 }
 
 /// Get process ID by name

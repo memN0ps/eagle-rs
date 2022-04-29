@@ -47,6 +47,11 @@ Currently this driver does not support manual mapping. However, an alternative w
 Otherwise you can always get an [extended validation (EV) code signing certificate](https://docs.microsoft.com/en-us/windows-hardware/drivers/dashboard/get-a-code-signing-certificate) by Microsoft which goes through a "vetting" process or use a 0-day which is really up to you lol.
 
 
+## Kernel Callbacks
+
+Kernel Callbacks are used to notify a Windows Kernel Driver when a specfic event occurs such as when a process is created or exits aka `ProcessNotify` or when a thread is created or delete aka `ThreadNotify` or when a dll is mapped into memory `LoadImageNotify`. Anti-cheats have been using these for a very long time and AVs and EDRs, including Sysmon have also started to make use of these.
+
+
 ## Enable `Test Mode` or `Test Signing` Mode 
 
 ```

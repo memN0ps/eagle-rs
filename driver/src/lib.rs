@@ -3,6 +3,7 @@
 mod string;
 mod process;
 mod token;
+mod callbacks;
 
 use core::mem::size_of;
 use core::panic::PanicInfo;
@@ -12,7 +13,8 @@ use winapi::km::wdm::IO_PRIORITY::IO_NO_INCREMENT;
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST};
+use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_PROCESS_NOTIFY_CALLBACK};
+use crate::callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx};
 use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
@@ -75,6 +77,22 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     }
 
 
+    // TESTING
+
+    kernel_println!("[+] Registering callbacks........");
+
+    let status = unsafe { 
+        PsSetCreateProcessNotifyRoutineEx(process_create_callback as PcreateProcessNotifyRoutineEx, FALSE) 
+    };
+
+    if !NT_SUCCESS(status) {
+        kernel_println!("[-] Failed to call PsSetCreateProcessNotifyRoutineEx ({:#x})", status);
+        return status;
+    }
+
+    kernel_println!("[+] PsSetCreateProcessNotifyRoutineEx call finished");
+
+
     return STATUS_SUCCESS;
 }
 
@@ -82,7 +100,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
 pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJECT, irp: &mut IRP) -> NTSTATUS {
 
     kernel_println!("[+] IRP_MJ_DEVICE_CONTROL called");
-
+    
     let stack = IoGetCurrentIrpStackLocation(irp);
     let control_code = unsafe { (*stack).Parameters.DeviceIoControl().IoControlCode };
     let mut status = STATUS_UNSUCCESSFUL;
@@ -132,8 +150,10 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
             } else {
                 kernel_println!("[-] Process token privileges failed");
             }
-        }
-        _ => kernel_println!("[-] Invalid IOCTL code"),
+        },
+        _ => {
+            kernel_println!("[-] Invalid IOCTL code")
+        },
     }
 
     unsafe { *(irp.IoStatus.__bindgen_anon_1.Status_mut()) = status };
