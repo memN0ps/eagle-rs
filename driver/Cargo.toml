@@ -17,6 +17,8 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+log = "0.4.16"
+kernel-log = "0.1.1"
 kernel-print = "0.1.0"
 kernel-alloc = "0.1.0"
 obfstr = "0.3.0"

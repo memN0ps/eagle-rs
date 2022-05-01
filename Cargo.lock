@@ -181,7 +181,9 @@ dependencies = [
  "common",
  "failure",
  "kernel-alloc",
+ "kernel-log",
  "kernel-print",
+ "log",
  "obfstr",
  "winapi 0.3.7",
  "winreg",
@@ -259,6 +261,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1393adc898e326dd5d56e46ee87320d64e35cc1b76241500bc00bf7904df3d57"
 
 [[package]]
+name = "kernel-log"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b48c6e45417e9176ee4bb98c95713ba04a6d9bcdfe9ca11fa7568adc7b552bd9"
+dependencies = [
+ "log",
+ "ntapi",
+]
+
+[[package]]
 name = "kernel-print"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,6 +290,15 @@ name = "libc"
 version = "0.2.124"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50"
+
+[[package]]
+name = "log"
+version = "0.4.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6389c490849ff5bc16be905ae24bc913a9c8892e19b2341dbc175e14c341c2b8"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "memchr"

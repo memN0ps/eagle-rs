@@ -4,21 +4,25 @@ mod string;
 mod process;
 mod token;
 mod callbacks;
+pub mod includes;
+
 
 use core::mem::size_of;
 use core::panic::PanicInfo;
 use core::ptr::null_mut;
-use kernel_print::kernel_println;
 use winapi::km::wdm::IO_PRIORITY::IO_NO_INCREMENT;
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{TargetProcess, IOCTL_PROCESS_READ_REQUEST, IOCTL_PROCESS_WRITE_REQUEST, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_PROCESS_NOTIFY_CALLBACK};
+use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST};
 use crate::callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx};
-use crate::process::{protect_process, unprotect_process};
+use crate::process::{protect_process, unprotect_process, find_psp_set_create_process_notify};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
 extern crate alloc;
+use kernel_log::KernelLogger;
+use log::{LevelFilter};
+
 
 /// When using the alloc crate it seems like it does some unwinding. Adding this
 /// export satisfies the compiler but may introduce undefined behaviour when a
@@ -38,10 +42,13 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
+
+
 #[no_mangle]
 pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRING) -> NTSTATUS {
-    //unsafe { DbgPrint("Hello, world!\0".as_ptr()); }
-    kernel_println!("[+] Driver Entry called");
+    KernelLogger::init(LevelFilter::Info).expect("Failed to initialize logger");
+
+    log::info!("Driver Entry called");
 
     driver.DriverUnload = Some(driver_unload);
 
@@ -64,7 +71,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     };
 
     if !NT_SUCCESS(status) {
-        kernel_println!("[-] Failed to create device object ({:#x})", status);
+        log::error!("Failed to create device object ({:#x})", status);
         return status;
     }
 
@@ -72,7 +79,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     status = unsafe { IoCreateSymbolicLink(&symbolic_link, &device_name) };
 
     if !NT_SUCCESS(status) {
-        kernel_println!("[-] Failed to create symbolic link ({:#x})", status);
+        log::error!("Failed to create symbolic link ({:#x})", status);
         return status;
     }
 
@@ -85,8 +92,6 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
 
 
 pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJECT, irp: &mut IRP) -> NTSTATUS {
-
-    kernel_println!("[+] IRP_MJ_DEVICE_CONTROL called");
     
     let stack = IoGetCurrentIrpStackLocation(irp);
     let control_code = unsafe { (*stack).Parameters.DeviceIoControl().IoControlCode };
@@ -94,52 +99,45 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
     let mut byte_io: usize = 0;
 
     match control_code {
-        IOCTL_PROCESS_READ_REQUEST => {
-            kernel_println!("[*] IOCTL_PROCESS_READ_REQUEST");
-            //kernel_read_virtual_memory();
-        },
-        IOCTL_PROCESS_WRITE_REQUEST => {
-            kernel_println!("[*] IOCTL_PROCESS_WRITE_REQUEST");
-            //kernel_write_virtual_memory()
-        },
         IOCTL_PROCESS_PROTECT_REQUEST => {
-            kernel_println!("[*] IOCTL_PROCESS_PROTECT_REQUEST");
+            log::info!("IOCTL_PROCESS_PROTECT_REQUEST");
             let protect_process_status = protect_process(irp, stack);
            
             if NT_SUCCESS(protect_process_status) {
-                kernel_println!("[+] Process protection successful");
+                log::info!("Process protection successful");
                 byte_io = size_of::<TargetProcess>();
                 status = STATUS_SUCCESS;
             } else {
-                kernel_println!("[-] Process protection failed");
+                log::error!("Process protection failed");
             }
         },
         IOCTL_PROCESS_UNPROTECT_REQUEST => {
-            kernel_println!("[*] IOCTL_PROCESS_UNPROTECT_REQUEST");
+            log::info!("IOCTL_PROCESS_UNPROTECT_REQUEST");
             let unprotect_process_status = unprotect_process(irp, stack);
+            find_psp_set_create_process_notify();
            
             if NT_SUCCESS(unprotect_process_status) {
-                kernel_println!("[+] Process unprotection successful");
+                log::info!("Process unprotection successful");
                 byte_io = size_of::<TargetProcess>();
                 status = STATUS_SUCCESS;
             } else {
-                kernel_println!("[-] Process unprotection failed");
+                log::error!("Process unprotection failed");
             }
         },
         IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST => {
-            kernel_println!("[*] IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST");
+            log::info!("IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST");
             let token_privs_status = enable_all_token_privileges(irp, stack);
            
             if NT_SUCCESS(token_privs_status) {
-                kernel_println!("[+] Process token privileges successful");
+                log::info!("Process token privileges successful");
                 byte_io = size_of::<TargetProcess>();
                 status = STATUS_SUCCESS;
             } else {
-                kernel_println!("[-] Process token privileges failed");
+                log::error!("Process token privileges failed");
             }
         },
         _ => {
-            kernel_println!("[-] Invalid IOCTL code")
+            log::error!("Invalid IOCTL code")
         },
     }
 
@@ -155,9 +153,9 @@ pub extern "system" fn dispatch_create_close(_device_object: &mut DEVICE_OBJECT,
     let code = unsafe { (*stack).MajorFunction };
 
 	if code == IRP_MJ::CREATE as u8 {
-		kernel_println!("[+] IRP_MJ_CREATE called");
+		log::info!("IRP_MJ_CREATE called");
 	} else {
-		kernel_println!("[+] IRP_MJ_CLOSE called");
+		log::info!("IRP_MJ_CLOSE called");
 	}
 	
     irp.IoStatus.Information = 0;
@@ -175,5 +173,5 @@ pub extern "system" fn driver_unload(driver: &mut DRIVER_OBJECT) {
 
     // Remove Callbacks (or BSOD)
     unsafe { PsSetCreateProcessNotifyRoutineEx(process_create_callback as PcreateProcessNotifyRoutineEx, TRUE) };
-    kernel_println!("[+] Driver unloaded successfully!");
+    log::info!("Driver unloaded successfully!");
 }
