@@ -8,11 +8,11 @@ extern "system" {
 
     pub fn PsReferencePrimaryToken(process: PEPROCESS) -> PACCESS_TOKEN;
 
-    pub fn PsDereferencePrimaryToken(PrimaryToken: PACCESS_TOKEN);
+    pub fn PsDereferencePrimaryToken(primary_token: PACCESS_TOKEN);
 
     pub fn ObfDereferenceObject(object: PVOID);
 
-    pub fn MmGetSystemRoutineAddress(SystemRoutineName: *mut UNICODE_STRING) -> PVOID;
+    pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
 }
 
 #[repr(C)]
@@ -47,14 +47,14 @@ pub struct ProcessProtectionInformation {
 
 
 #[repr(C)]
-#[allow(non_snake_case)]
-pub struct CLIENT_ID {
-    pub UniqueProcess: HANDLE,
-    pub UniqueThread: HANDLE,
+#[derive(Debug, Clone, Copy)]
+pub struct ClientID {
+    pub unique_process: HANDLE,
+    pub unique_thread: HANDLE,
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ImageInfoProperties {
     pub image_address_mode: ULONG,
     pub system_mode_image: ULONG,
@@ -68,119 +68,103 @@ pub struct ImageInfoProperties {
 }
 
 #[repr(C)]
-pub union IMAGE_INFO_0 {
+#[derive(Clone, Copy)]
+pub union ImageInfo0 {
     pub properties: ULONG,
     pub param0: ImageInfoProperties,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-pub struct IMAGE_INFO {
-    pub param0: IMAGE_INFO_0,    
+pub struct ImageInfo {
+    pub param0: ImageInfo0,    
     pub image_base: PVOID,
     pub image_selector: ULONG,
     pub image_size: SIZE_T,
     pub image_section_number: ULONG,
 }
 
-#[allow(dead_code)]
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
 pub struct VPB {
-    pub Type: CSHORT,
-    pub Size: CSHORT,
-    pub Flags: USHORT,
-    pub VolumeLabelLength: USHORT,
-    pub DeviceObject: PDEVICE_OBJECT,
-    pub RealDevice: PDEVICE_OBJECT,
-    pub SerialNumber: ULONG,
-    pub ReferenceCount: ULONG,
-    pub VolumeLabel: u16,
+    pub ttype: CSHORT,
+    pub size: CSHORT,
+    pub flags: USHORT,
+    pub volume_label_length: USHORT,
+    pub device_object: PDEVICE_OBJECT,
+    pub real_device: PDEVICE_OBJECT,
+    pub serial_number: ULONG,
+    pub reference_count: ULONG,
+    pub volume_label: u16,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-pub struct IO_COMPLETION_CONTEXT {
-    pub Port: PVOID,
-    pub Key: PVOID,
+pub struct IoCompletionContext {
+    pub port: PVOID,
+    pub key: PVOID,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-pub struct SECTION_OBJECT_POINTERS {
-    pub DataSectionObject: PVOID,
-    pub SharedCacheMap: PVOID,
-    pub ImageSectionObject: PVOID,
+pub struct SectionObjectPointers {
+    pub data_section_object: PVOID,
+    pub shared_cache_map: PVOID,
+    pub image_section_object: PVOID,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-pub struct FILE_OBJECT {
-    pub Type: CSHORT,
-    pub Size: CSHORT,
-    pub DeviceObject: PDEVICE_OBJECT,
-    pub Vpb: *mut VPB,
-    pub FsContext: PVOID,
-    pub FsContext32: PVOID,
-    pub SectionObjectPointer: *mut SECTION_OBJECT_POINTERS,
-    pub PrivateCacheMap: PVOID,
-    pub FinalStatus: NTSTATUS,
-    pub RelatedFileObject: *mut FILE_OBJECT,
-    pub LockOperation: BOOLEAN,
-    pub DeletePending: BOOLEAN,
-    pub ReadAccess: BOOLEAN,
-    pub WriteAccess: BOOLEAN,
-    pub DeleteAccess: BOOLEAN,
-    pub SharedRead: BOOLEAN,
-    pub SharedWrite: BOOLEAN,
-    pub SharedDelete: BOOLEAN,
-    pub Flags: ULONG,
-    pub FileName: UNICODE_STRING,
-    pub CurrentByteOffset: LARGE_INTEGER,
-    pub Waiters: ULONG,
-    pub Busy: ULONG,
-    pub LastLock: PVOID,
-    pub Lock: KEVENT,
-    pub Event: KEVENT,
-    pub CompletionContext: *mut IO_COMPLETION_CONTEXT,
-    pub IrpListLock: KSPIN_LOCK,
-    pub IrpList: LIST_ENTRY,
-    pub FileObjectExtension: PVOID,
+pub struct FileObject {
+    pub ttype: CSHORT,
+    pub size: CSHORT,
+    pub device_object: PDEVICE_OBJECT,
+    pub vpb: *mut VPB,
+    pub fs_context: PVOID,
+    pub fs_context32: PVOID,
+    pub section_object_pointer: *mut SectionObjectPointers,
+    pub private_cache_map: PVOID,
+    pub final_status: NTSTATUS,
+    pub related_file_object: *mut FileObject,
+    pub lock_operation: BOOLEAN,
+    pub delete_pending: BOOLEAN,
+    pub read_access: BOOLEAN,
+    pub write_access: BOOLEAN,
+    pub delete_access: BOOLEAN,
+    pub shared_read: BOOLEAN,
+    pub shared_write: BOOLEAN,
+    pub shared_delete: BOOLEAN,
+    pub flags: ULONG,
+    pub file_name: UNICODE_STRING,
+    pub current_byte_offset: LARGE_INTEGER,
+    pub waiters: ULONG,
+    pub busy: ULONG,
+    pub last_lock: PVOID,
+    pub lock: KEVENT,
+    pub event: KEVENT,
+    pub completion_context: *mut IoCompletionContext,
+    pub irp_list_lock: KSPIN_LOCK,
+    pub irp_list: LIST_ENTRY,
+    pub file_object_extension: PVOID,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
 #[derive(Debug, Clone, Copy)]
-pub struct PS_CREATE_NOTIFY_INFO_0_0 {
-    pub FileOpenNameAvailable: ULONG,
-    pub IsSubsystemProcess: ULONG,
-    pub Reserved: ULONG,
+pub struct PSCreateNotifyInfo00 {
+    pub file_open_available: ULONG,
+    pub is_subsystem_process: ULONG,
+    pub reserved: ULONG,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-pub union PS_CREATE_NOTIFY_INFO_0 {
-    pub Flags: ULONG,
-    pub param0: PS_CREATE_NOTIFY_INFO_0_0,
+pub union PSCreateNotifyInfo0 {
+    pub flags: ULONG,
+    pub param0: PSCreateNotifyInfo00,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-pub struct PS_CREATE_NOTIFY_INFO {
-    pub Size: SIZE_T,
-    pub param0: PS_CREATE_NOTIFY_INFO_0,
-    pub ParentProcessId: HANDLE,
-    pub CreatingThreadId: CLIENT_ID,
-    pub FileObject: *mut FILE_OBJECT,
-    pub ImageFileName: PCUNICODE_STRING,
-    pub CommandLine: PCUNICODE_STRING,
-    pub CreationStatus: NTSTATUS,
+pub struct PSCreateNotifyInfo {
+    pub size: SIZE_T,
+    pub param0: PSCreateNotifyInfo0,
+    pub parent_process_id: HANDLE,
+    pub creating_thread_id: ClientID,
+    pub file_object: *mut FileObject,
+    pub image_file_name: PCUNICODE_STRING,
+    pub command_line: PCUNICODE_STRING,
+    pub creation_status: NTSTATUS,
 }
