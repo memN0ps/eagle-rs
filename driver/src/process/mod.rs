@@ -1,4 +1,4 @@
-use core::ptr::null_mut;
+use core::{ptr::null_mut};
 use common::TargetProcess;
 use winapi::km::wdm::{IRP, PEPROCESS, IO_STACK_LOCATION};
 use winapi::shared::ntdef::{NTSTATUS, NT_SUCCESS, PVOID, UNICODE_STRING};
@@ -120,7 +120,7 @@ pub fn get_eprocess_signature_level_offset() -> isize {
     return signature_level_offset as isize;
 }
 
-pub fn find_psp_set_create_process_notify() -> isize {
+pub fn find_psp_set_create_process_notify() -> Option<u8> {
     let unicode_function_name = &mut create_unicode_string(
         obfstr::wide!("PsSetCreateProcessNotifyRoutine\0")
     ) as *mut UNICODE_STRING;
@@ -129,18 +129,24 @@ pub fn find_psp_set_create_process_notify() -> isize {
 
     if base_address.is_null() {
         log::error!("PsSetCreateProcessNotifyRoutine is null");
-        return 0;
+        return None;
     }
 
+    // let stub: &'static [u8] = &[0xb6, 0x10, 0x00, 0x00];
+
     let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 18) };
+    let slice = &function_bytes[14..16];
+    log::info!("u16::from_le_bytes(slice.try_into().unwrap());");
 
-    log::info!("Function Bytes in Decimal: {:?}", function_bytes);
-
-    let slice = &function_bytes[12..18];
-    let psp_offset = u16::from_le_bytes(slice.try_into().unwrap());
+    let psp_offset = u16::from_le_bytes(slice.try_into().unwrap()); 
     log::info!("PspSetCreateProcessNotifyRoutine: {:#x}", psp_offset);
 
-    return psp_offset as isize;
+    let new_base = unsafe { base_address.cast::<u8>().offset(0xd) }; // +0xd is call    nt!PspSetCreateProcessNotifyRoutine
+    let new_offset = psp_offset + 0x5; // offset + 5 extra bytes
+    let psp_address = unsafe { new_base.cast::<u8>().offset(new_offset as isize) };
+    log::info!("PspSetCreateProcessNotifyRoutine: {:?}", psp_address);
+
+    return None;
 }
 
 /*

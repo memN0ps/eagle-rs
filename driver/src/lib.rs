@@ -47,6 +47,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     KernelLogger::init(LevelFilter::Info).expect("Failed to initialize logger");
 
     log::info!("Driver Entry called");
+    find_psp_set_create_process_notify();
 
     driver.DriverUnload = Some(driver_unload);
 
@@ -112,7 +113,6 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
         IOCTL_PROCESS_UNPROTECT_REQUEST => {
             log::info!("IOCTL_PROCESS_UNPROTECT_REQUEST");
             let unprotect_process_status = unprotect_process(irp, stack);
-            find_psp_set_create_process_notify();
            
             if NT_SUCCESS(unprotect_process_status) {
                 log::info!("Process unprotection successful");
