@@ -13,10 +13,28 @@ pub const IOCTL_PROCESS_WRITE_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x80
 pub const IOCTL_PROCESS_PROTECT_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x802, METHOD_NEITHER, FILE_ANY_ACCESS);
 pub const IOCTL_PROCESS_UNPROTECT_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x803, METHOD_NEITHER, FILE_ANY_ACCESS);
 pub const IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x804, METHOD_NEITHER, FILE_ANY_ACCESS);
-pub const IOCTL_PROCESS_NOTIFY_CALLBACK: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x805, METHOD_NEITHER, FILE_ANY_ACCESS);
+pub const IOCTL_PROCESS_ENUM_CALLBACKS: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x806, METHOD_NEITHER, FILE_ANY_ACCESS);
+
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct TargetProcess {
     pub process_id: u32,
 }
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CallBackInformation {
+    pub module_name: [u8; 256],
+    pub pointer: u64,
+}
+
+/* 
+impl Default for CallBackInformation {
+    fn default() -> Self {
+        Self {
+            module_name: [0u8; 256],
+            pointer: 0,
+        }
+    }
+}*/

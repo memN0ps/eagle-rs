@@ -1,4 +1,4 @@
-use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN};
+use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
 
 extern "system" {
     #[allow(dead_code)]
@@ -13,6 +13,10 @@ extern "system" {
     pub fn ObfDereferenceObject(object: PVOID);
 
     pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
+
+    pub fn AuxKlibInitialize() -> NTSTATUS;
+
+    pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
 }
 
 #[repr(C)]
@@ -93,7 +97,7 @@ pub struct VPB {
     pub real_device: PDEVICE_OBJECT,
     pub serial_number: ULONG,
     pub reference_count: ULONG,
-    pub volume_label: u16,
+    pub volume_label: [u16; 32],
 }
 
 #[repr(C)]
@@ -167,4 +171,20 @@ pub struct PSCreateNotifyInfo {
     pub image_file_name: PCUNICODE_STRING,
     pub command_line: PCUNICODE_STRING,
     pub creation_status: NTSTATUS,
+}
+
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AuxModuleBasicInfo {
+    pub image_base: *mut c_void,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AuxModuleExtendedInfo {
+    pub basic_info: AuxModuleBasicInfo,
+    pub image_size: u32,
+    pub file_name_offset: u16,
+    pub full_path_name: [u8; 256],
 }

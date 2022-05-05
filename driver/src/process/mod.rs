@@ -120,7 +120,7 @@ pub fn get_eprocess_signature_level_offset() -> isize {
     return signature_level_offset as isize;
 }
 
-pub fn find_psp_set_create_process_notify() -> Option<*const u8> {
+pub fn find_psp_set_create_process_notify() -> *const u8 {
     let unicode_function_name = &mut create_unicode_string(
         obfstr::wide!("PsSetCreateProcessNotifyRoutine\0")
     ) as *mut UNICODE_STRING;
@@ -129,7 +129,7 @@ pub fn find_psp_set_create_process_notify() -> Option<*const u8> {
 
     if base_address.is_null() {
         log::error!("PsSetCreateProcessNotifyRoutine is null");
-        return None;
+        return null_mut();
     }
 
     let func_slice: &[u8] = unsafe { 
@@ -191,11 +191,11 @@ pub fn find_psp_set_create_process_notify() -> Option<*const u8> {
             let psp_set_create_process_notify_array = unsafe { new_base.cast::<u8>().offset(new_offset as isize) };
             log::info!("New base + new offset = psp_set_create_process_notify_array: {:?}", psp_set_create_process_notify_array);
 
-            return Some(psp_set_create_process_notify_array);
+            return psp_set_create_process_notify_array;
         }
     }
 
-    return None;
+    return null_mut();
 }
 
 /*

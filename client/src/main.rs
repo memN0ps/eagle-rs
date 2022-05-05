@@ -14,14 +14,19 @@ struct Args {
     
     /// Enabled or Disable process protection
     #[clap(short, long)]
-    protection: String,
+    protection: Option<String>,
+
+    /// Enumerate kernel callbacks
+    #[clap(short, long)]
+    enumerate: Option<String>,
 }
 
 fn main() {
 
     let args = Args::parse();
     let process_id = get_process_id_by_name(args.target.as_str()) as u32;
-    let protect = args.protection;
+    let protect = args.protection.unwrap();
+    let enumerate = args.enumerate.unwrap();
 
 
     let file = CString::new("\\\\.\\Eagle").unwrap().into_raw() as *const i8;
@@ -48,8 +53,10 @@ fn main() {
         kernel_interface::enable_tokens(process_id, driver_handle);
     } else if protect.to_uppercase() == "DISABLE" {
         kernel_interface::unprotect_process(process_id, driver_handle);
-        kernel_interface::register_callbacks(process_id, driver_handle);
-    } else {
+    } else if enumerate.to_uppercase() == "TRUE" {
+        kernel_interface::enumerate_callbacks(driver_handle);
+    }
+    else {
         panic!("[-] Invalid CLI options, use help menu");
     }
 
