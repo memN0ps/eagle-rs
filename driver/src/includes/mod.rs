@@ -1,5 +1,13 @@
 use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
 
+#[link(name = "aux_klib")]
+extern "system" {
+    pub fn AuxKlibInitialize() -> NTSTATUS;
+    pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
+}
+
+#[link(name = "ntoskrnl", kind = "static")]
+//#[link(name = "ntoskrnl")]
 extern "system" {
     #[allow(dead_code)]
     pub fn MmIsAddressValid(virtual_address: PVOID) -> bool;
@@ -13,10 +21,6 @@ extern "system" {
     pub fn ObfDereferenceObject(object: PVOID);
 
     pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
-
-    pub fn AuxKlibInitialize() -> NTSTATUS;
-
-    pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
 }
 
 #[repr(C)]
