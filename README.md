@@ -2,23 +2,42 @@
 
 ## Features
 
-* Unprotect a process via Windows Kernel
-* Protect a process via Windows Kernel (PsProtectedSignerWinTcb)
-* Read/Write virtual memory via Windows Kernel (Todo)
-* Enable all token privileges for a process via Windows Kernel
-* Remove Kernel Callbacks (Todo)
+* Protect process (Done)
+* Elevate process permissions
+* Enumerate / Remove kernel callbacks (Todo)
+* DSE enable/disable (ToDo)
 
 ## [Install Rust](https://www.rust-lang.org/tools/install)
 
 "To start using Rust, download the installer, then run the program and follow the onscreen instructions. You may need to install the [Visual Studio C++ Build tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) when prompted to do so. If you are not on Windows see ["Other Installation Methods"](https://forge.rust-lang.org/infra/other-installation-methods.html).
 
+
+## [Install](https://rust-lang.github.io/rustup/concepts/channels.html)
+
+Install and change to Rust nightly
+
+```
+rustup toolchain install nightly
+rustup default nightly
+```
+
 ## [Install cargo-make](https://github.com/sagiegurari/cargo-make)
 
+Install cargo-make
+
 ```
-cargo install --force cargo-make
+cargo install cargo-make
 ```
 
+## [Install WDK/SDK](https://docs.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
+
+1. Step 1: Install Visual Studio 2019
+2. Step 2: Install Windows 11 SDK (22000.1)
+3. Step 3: Install Windows 11 WDK
+
 ## Build Driver
+
+Change directory to .\driver\ and build driver
 
 ```
 cargo make sign

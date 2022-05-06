@@ -6,7 +6,7 @@ extern "system" {
     pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
 }
 
-#[link(name = "ntoskrnl", kind = "static")]
+#[link(name = "ntoskrnl")]
 //#[link(name = "ntoskrnl")]
 extern "system" {
     #[allow(dead_code)]
