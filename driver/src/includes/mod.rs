@@ -1,6 +1,6 @@
 use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
 
-#[link(name = "aux_klib")]
+#[link(name = "aux_klib", kind = "static")]
 extern "system" {
     pub fn AuxKlibInitialize() -> NTSTATUS;
     pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
