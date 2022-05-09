@@ -2,10 +2,17 @@
 
 ## Features (IN PROGRESS)
 
-* Protect / Unprotect process (Done)
-* Elevate / Remove token privileges (Done)
-* Enumerate / Remove kernel callbacks (Todo)
-* DSE enable/disable (ToDo)
+* Protect / unprotect process (Done)
+* Elevate / remove token privileges (Done)
+* Enumerate / remove kernel callbacks (Todo)
+        - PsSetCreateProcessNotifyRoutine
+        - PsSetCreateThreadNotifyRoutine
+        - PsSetLoadImageNotifyRoutine
+        - CmRegisterCallbackEx
+        - ObRegisterCallbacks
+* DSE enable/disable (Todo)
+* Hide process (Todo)
+* Kernel mode manual mapper (Todo)
 
 ## [Install Rust](https://www.rust-lang.org/tools/install)
 
@@ -68,7 +75,7 @@ Otherwise you can always get an [extended validation (EV) code signing certifica
 
 ## Kernel Callbacks
 
-Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `ProcessNotify` or when a thread is created or deleted aka `ThreadNotify` or when a DLL is mapped into memory `LoadImageNotify`. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
+Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `PsSetCreateProcessNotifyRoutine` or when a thread is created or deleted aka `PsSetCreateThreadNotifyRoutine` or when a DLL is mapped into memory `PsSetLoadImageNotifyRoutine` or `CmRegisterCallbackEx` when a registry is created or `ObRegisterCallbacks` when a handle is created. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
 
 
 ## Enable `Test Mode` or `Test Signing` Mode 
