@@ -1,32 +1,50 @@
 use sysinfo::{Pid, SystemExt, ProcessExt};
-use winapi::um::{fileapi::{CreateFileA, OPEN_EXISTING}, winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE}};
+use winapi::um::{fileapi::{CreateFileA, OPEN_EXISTING}, winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE}, handleapi::CloseHandle};
 use std::{ffi::CString, ptr::null_mut};
-use clap::Parser;
 mod kernel_interface;
+use clap::Parser;
+use clap::ArgGroup;
 
-/// Process Manipulation Tool
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Target process to change protection
-    #[clap(short, long)]
-    target: String,
-    
-    /// Enabled or Disable process protection
-    #[clap(short, long)]
-    protection: Option<String>,
+#[clap(group(
+            ArgGroup::new("client")
+                .required(true)
+                .args(&["protect", "unprotect", "token", "enumerate", "patch"]),
+))]
+struct Cli {
+    /// Target process name
+    #[clap(long, value_name = "NAME")]
+    process: String,
+
+    /// Elevate process privileges
+    #[clap(long)]
+    protect: bool,
+
+    /// Restore process privileges
+    #[clap(long)]
+    unprotect: bool,
+
+    /// Elevate token privileges
+    #[clap(long)]
+    token: bool,
 
     /// Enumerate kernel callbacks
-    #[clap(short, long)]
-    enumerate: Option<String>,
+    #[clap(long)]
+    enumerate: bool,
+
+    /// Patch kernel callbacks
+    #[clap(long)]
+    patch: bool,
 }
 
 fn main() {
 
-    let args = Args::parse();
-    let process_id = get_process_id_by_name(args.target.as_str()) as u32;
-    let protect = args.protection.unwrap();
-    let enumerate = args.enumerate.unwrap();
+    let cli = Cli::parse();
+
+    let process_id = get_process_id_by_name(cli.process.as_str()) as u32;
+    //let protect = args.protect.unwrap();
+    //let enumerate = args.enumerate.unwrap();
 
 
     let file = CString::new("\\\\.\\Eagle").unwrap().into_raw() as *const i8;
@@ -48,18 +66,20 @@ fn main() {
     println!("File Handle {:?}", driver_handle);
     println!("Process ID: {:?}", process_id);
 
-    if protect.to_uppercase() == "ENABLE" {
+
+    if cli.protect {
         kernel_interface::protect_process(process_id, driver_handle);
-        kernel_interface::enable_tokens(process_id, driver_handle);
-    } else if protect.to_uppercase() == "DISABLE" {
+    } else if cli.unprotect {
         kernel_interface::unprotect_process(process_id, driver_handle);
-    } else if enumerate.to_uppercase() == "TRUE" {
+    } else if cli.token {
+        kernel_interface::enable_tokens(process_id, driver_handle);
+    } else if cli.enumerate {
         kernel_interface::enumerate_callbacks(driver_handle);
-    }
-    else {
-        panic!("[-] Invalid CLI options, use help menu");
+    } else {
+        println!("Invalid Options");
     }
 
+    unsafe { CloseHandle(driver_handle) };
 }
 
 /// Get process ID by name

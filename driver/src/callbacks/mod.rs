@@ -1,9 +1,9 @@
 use core::{ptr::{slice_from_raw_parts, null_mut}, mem::size_of, intrinsics::copy_nonoverlapping};
 use alloc::{string::String};
 use common::CallBackInformation;
-use kernel_alloc::nt::{ExAllocatePool, ExFreePool};
-use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, NT_SUCCESS}, ntstatus::{STATUS_UNSUCCESSFUL, STATUS_SUCCESS, STATUS_INSUFFICIENT_RESOURCES}}, km::wdm::{PEPROCESS}, um::winnt::RtlZeroMemory, ctypes::c_void};
-use crate::includes::{PSCreateNotifyInfo, AuxKlibInitialize, AuxKlibQueryModuleInformation, AuxModuleExtendedInfo};
+use kernel_alloc::nt::{ExAllocatePool};
+use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, NT_SUCCESS}, ntstatus::{STATUS_SUCCESS}}, km::wdm::{PEPROCESS}, um::winnt::RtlZeroMemory, ctypes::c_void};
+use crate::includes::{PSCreateNotifyInfo, AuxKlibInitialize, AuxKlibQueryModuleInformation, AuxModuleExtendedInfo, strlen};
 
 #[allow(non_snake_case)]
 pub type PcreateProcessNotifyRoutineEx = extern "system" fn(process: PEPROCESS, process_id: HANDLE, create_info: *mut PSCreateNotifyInfo);
@@ -52,76 +52,81 @@ AuxKlibInitialize: https://docs.microsoft.com/en-us/windows/win32/devnotes/auxkl
 AuxKlibQueryModuleInformation: https://docs.microsoft.com/en-us/windows/win32/devnotes/auxklibquerymoduleinformation-func
 */
 
-/// Allocate
-pub fn search_loaded_modules(module_info: *mut CallBackInformation) -> NTSTATUS {
-
-    log::info!("Calling AuxKlibInitialize");
+/// Return a pointer and number of loaded modules
+pub fn get_loaded_modules() -> Option<(*mut AuxModuleExtendedInfo, u32)> {
     let status = unsafe { AuxKlibInitialize() };
 
     if !NT_SUCCESS(status) {
         log::error!("Failed to call AuxKlibInitialize ({:#x})", status);
-        return STATUS_UNSUCCESSFUL;
+        return None;
     }
 
     let mut buffer_size: u32 = 0;
 
-    //1st: get the buffer size required to hold the requested information
-    log::info!("Calling 1st AuxKlibQueryModuleInformation");
     let status = unsafe { AuxKlibQueryModuleInformation(&mut buffer_size, size_of::<AuxModuleExtendedInfo>() as u32, null_mut()) };
 
     if !NT_SUCCESS(status) {
         log::error!("1st AuxKlibQueryModuleInformation failed ({:#x})", status);
-        return STATUS_UNSUCCESSFUL;
+        return None;
     }
 
-    // allocate memory
-    log::info!("Calling ExAllocatePool");
-    let modules = unsafe { ExAllocatePool(kernel_alloc::nt::PoolType::NonPagedPool, buffer_size as usize) as *mut c_void };
+    let mod_ptr = unsafe { ExAllocatePool(kernel_alloc::nt::PoolType::NonPagedPool, buffer_size as usize) as *mut c_void };
 
-    if modules.is_null() {
-        return STATUS_INSUFFICIENT_RESOURCES;
+    if mod_ptr.is_null() {
+        return None;
     }
 
-    // Zero out the memory location to be filled.
-    log::info!("Calling RtlZeroMemory");
-    unsafe { RtlZeroMemory(modules, buffer_size as usize) };
+    unsafe { RtlZeroMemory(mod_ptr, buffer_size as usize) };
 
-    //2nd: get the information
-    log::info!("Calling 2nd AuxKlibQueryModuleInformation");
-    let status = unsafe { AuxKlibQueryModuleInformation(&mut buffer_size, size_of::<AuxModuleExtendedInfo>() as u32, modules) };
+    let status = unsafe { AuxKlibQueryModuleInformation(&mut buffer_size, size_of::<AuxModuleExtendedInfo>() as u32, mod_ptr) };
 
     if !NT_SUCCESS(status) {
         log::error!("2nd AuxKlibQueryModuleInformation failed ({:#x})", status);
-        return STATUS_UNSUCCESSFUL;
+        return None;
     }
 
-    // do the magic
-    log::info!("Getting number of modules");
     let number_of_modules = buffer_size / size_of::<AuxModuleExtendedInfo>() as u32;
+    let module = mod_ptr as *mut AuxModuleExtendedInfo;
 
-    let module = modules as *mut AuxModuleExtendedInfo;
+    log::info!("Address of Modules: {:?}, Number of Modules: {:?}", module, number_of_modules);
+
+    return Some((module, number_of_modules));
+}
+
+/// Search the loaded modules
+pub fn search_loaded_modules(modules: *mut AuxModuleExtendedInfo, number_of_modules: u32, module_info: *mut CallBackInformation) -> NTSTATUS {
     
-    log::info!("Looping through the number of modules");
     for i  in 0..number_of_modules {
-        let start_address = unsafe { (*module.offset(i as isize)).basic_info.image_base };
-        let image_size = unsafe { (*module.offset(i as isize)).image_size };
-        let end_address = unsafe { start_address.cast::<u8>().offset(image_size as isize) as u64 };
+        let start_address = unsafe { (*modules.offset(i as isize)).basic_info.image_base };
+        log::info!("start address: {:?}", start_address);
+        
+        let image_size = unsafe { (*modules.offset(i as isize)).image_size };
+        log::info!("image_size: {:?}", image_size);
+        
+        let end_address = start_address as u64 + image_size as u64;
+        log::info!("end_address: {:#x}", end_address);
 
-        let raw_pointer = unsafe { *(((*module_info).pointer &  0xfffffffffffffff8) as * mut u64) };
+        let module_info_pointer = unsafe { ((*module_info).pointer &  0xfffffffffffffff8) as *mut u64 };
+        log::info!("(((*module_info).pointer &  0xfffffffffffffff8) as * mut u64) {:?}", module_info_pointer);
+
+        let raw_pointer = unsafe { *(((*module_info).pointer &  0xfffffffffffffff8) as *mut u64) };
+        log::info!("raw_pointer: {:#x}", raw_pointer);
 
         if raw_pointer > start_address as u64 && raw_pointer < end_address {
-            let mut dst = unsafe { (*module_info).module_name };
-            
+            let dst = unsafe { (*module_info).module_name.as_mut() };
+
             let src = unsafe { 
-                (*module.offset(i as isize)).full_path_name[(*module.offset(i as isize)).file_name_offset as usize] as *const u8
+                (*modules.offset(i as isize)).full_path_name.as_mut_ptr().offset((*modules.offset(i as isize)).file_name_offset as isize)
             };
+
+            log::info!("src: {:?}", src);
+            log::info!("strlen(src): {:?}", unsafe { strlen(src as *const i8) });
             
-            unsafe { copy_nonoverlapping(src, dst.as_mut_ptr(), 256) };
+            unsafe { copy_nonoverlapping(src, dst.as_mut_ptr(), strlen(src as *const i8)) };
+            log::info!("dst: {:?}", dst);
+            break;
         }
     }
-
-
-    unsafe { ExFreePool(modules as u64) };
 
     return STATUS_SUCCESS;
 }

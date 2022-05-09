@@ -1,9 +1,9 @@
-# Rust Windows Kernel Driver
+# Rust Windows Kernel Driver for Red Teamers
 
 ## Features
 
-* Protect process (Done)
-* Elevate process permissions
+* Protect / Unprotect process (Done)
+* Elevate / Remove token privileges (Done)
 * Enumerate / Remove kernel callbacks (Todo)
 * DSE enable/disable (ToDo)
 
@@ -51,13 +51,13 @@ cargo build -p client
 
 ## PatchGuard (Kernel Patch Protection)
 
-PatchGuard protects the Windows Kernel against from 64-bit Windows versions of Vista onwards to blue-screen if unauthorized modifcations of  kernel code is detected. This also prevents things like SSDT hooking which is the equivlent to IAT hooking in user-mode. One of the flaws with PatchGuard is that is is not constantly checking protected regions which introcudes race condition flaws that allows us to modify a protected region and change it back without PatchGuard flagging it as an "unauthorized modifcations". Although we won't know when PatchGuard will perform its next check and good opsec would be to modifying the protected region for a very short amount of time and change it back so PatchGuard does not notice. Also when Windows is put into test signing / debug mode patchguard is disable.
+PatchGuard protects the Windows Kernel from 64-bit Windows versions of Vista onwards to blue-screen if unauthorized modifications of kernel code are detected. This also prevents things like SSDT hooking which is equivalent to IAT hooking in user-mode. One of the flaws with PatchGuard is that is not constantly checking protected regions which introduces race condition flaws that allow us to modify a protected region and change it back without PatchGuard flagging it as an "unauthorized modifications". Although we won't know when PatchGuard will perform its next check and good OPSEC would be to modify the protected region for a very short amount of time and change it back so PatchGuard does not notice. Also when Windows is put into test signing / debug mode PatchGuard is disabled.
 
 ## Driver Signatures Enforcement
 
-Since Windows 10 1607, Microsoft will not load kernel drivers unless they are signed via the Microsoft Development Portal. But if for developers this would mean getting a Extended validation (EV) code signing certificate sign you kernel driver that are handed out from providers such as DigiCert, GlobalSign. Then you must join the Windows Hardware Developer Center program by submitting your Extended validation (EV) code signing certificates and going through further vetting process. When they are accepted a driver needs to be signed by the developer with their EV cert and uploaded to the Microsoft Development Portal to be approved and signed by Microsoft. This is the "normal way" to load your driver.
+Since Windows 10 1607, Microsoft will not load kernel drivers unless they are signed via the Microsoft Development Portal. But if for developers this would mean getting an Extended Validation (EV) code signing certificate to sign your kernel driver that is handed out from providers such as DigiCert, and GlobalSign. Then you must join the Windows Hardware Developer Center program by submitting your Extended Validation (EV) code signing certificates and going through a vetting process. When they are accepted a driver needs to be signed by the developer with their EV cert and uploaded to the Microsoft Development Portal to be approved and signed by Microsoft. This is the "normal way" to load your driver.
 
-Currently this driver does not support manual mapping. However, an alternative way to load your driver is to manually map it by exploiting an existing CVE in a signed driver such as capcom or intel:
+Currently, this driver does not support manual mapping. However, an alternative way to load your driver is to manually map it by exploiting an existing CVE in a signed driver such as Capcom or Intel:
 
 * https://github.com/TheCruZ/kdmapper
 * https://github.com/not-wlan/drvmap
@@ -68,7 +68,7 @@ Otherwise you can always get an [extended validation (EV) code signing certifica
 
 ## Kernel Callbacks
 
-Kernel Callbacks are used to notify a Windows Kernel Driver when a specfic event occurs such as when a process is created or exits aka `ProcessNotify` or when a thread is created or delete aka `ThreadNotify` or when a dll is mapped into memory `LoadImageNotify`. Anti-cheats have been using these for a very long time and AVs and EDRs, including Sysmon have also started to make use of these.
+Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `ProcessNotify` or when a thread is created or deleted aka `ThreadNotify` or when a DLL is mapped into memory `LoadImageNotify`. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
 
 
 ## Enable `Test Mode` or `Test Signing` Mode 
@@ -89,7 +89,7 @@ bcdedit /dbgsettings net hostip:<IP> port:<PORT>
 You can use [Service Control Manager](https://docs.microsoft.com/en-us/windows/win32/services/service-control-manager) or [OSR Driver Loader](https://www.osronline.com/article.cfm%5Earticle=157.htm) to load your driver.
 
 ```
-PS C:\Users\User> sc.exe create Eagle type= kernel binPath= C:\Eagle.sys
+PS C:\Users\User> sc.exe create Eagle type= kernel binPath= C:\Windows\System32\Eagle.sys
 [SC] CreateService SUCCESS
 PS C:\Users\User> sc.exe query Eagle
 
@@ -126,7 +126,7 @@ SERVICE_NAME: Eagle
 
 ## Note
 
-A better way to code Windows Kernel Drivers in Rust is to create bindings as shown in the references below. However, using someone else's bindings hides the functionality and this is why I made it the classic way unless of course you create your own bindings.
+A better way to code Windows Kernel Drivers in Rust is to create bindings as shown in the references below. However, using someone else's bindings hides the functionality and this is why I made it the classic way unless, of course, you create your own bindings. I plan on refactoring the code in the future but for now, it will be a bit messy and incomplete.
 
 I made this project for fun and because I really like Rust and Windows Internals. This is obviously not perfect or finished yet. if you would like to learn more about Windows Kernel Programming then feel free to check out the references below.
 
@@ -139,13 +139,13 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://github.com/StephanvanSchaik/windows-kernel-rs/
 * https://github.com/rmccrystal/kernel-rs
 * https://github.com/pravic/winapi-kmd-rs
-* https://courses.zeropointsecurity.co.uk/courses/offensive-driver-development
+* https://courses.zeropointsecurity.co.uk/courses/offensive-driver-development (Big thanks to Rastamouse)
 * https://leanpub.com/windowskernelprogramming
 * https://guidedhacking.com/
 * https://www.unknowncheats.me/
 * https://gamehacking.academy/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
-* https://discord.com/invite/rust-lang-community (Thanks to: Zuix, Nick12, kpreid and many others)
+* https://discord.com/invite/rust-lang-community (Thanks to: WithinRafael, Nick12, Zuix, kpreid and many others)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/

@@ -120,7 +120,7 @@ pub fn get_eprocess_signature_level_offset() -> isize {
     return signature_level_offset as isize;
 }
 
-pub fn find_psp_set_create_process_notify() -> *const u8 {
+pub fn find_psp_set_create_process_notify() -> Option<*const u8> {
     let unicode_function_name = &mut create_unicode_string(
         obfstr::wide!("PsSetCreateProcessNotifyRoutine\0")
     ) as *mut UNICODE_STRING;
@@ -129,7 +129,7 @@ pub fn find_psp_set_create_process_notify() -> *const u8 {
 
     if base_address.is_null() {
         log::error!("PsSetCreateProcessNotifyRoutine is null");
-        return null_mut();
+        return None;
     }
 
     let func_slice: &[u8] = unsafe { 
@@ -142,60 +142,36 @@ pub fn find_psp_set_create_process_notify() -> *const u8 {
     
     // Search for the jump or call instruction inside PsSetCreateProcessNotifyRoutine
     if let Some(i) = func_slice.iter().position(|x| *x == OPCODE_CALL || *x == OPCODE_JMP) {
-        log::info!("The call/jmp starts a byte: {:?}", i);
         
         let position = i + 1; // 1 byte after jmp/call
-        log::info!("positon: {:?}", position);
-        
         let offset_slice = &func_slice[position..position + 2]; //u16::from_le_bytes takes 2 slices
         let offset = u16::from_le_bytes(offset_slice.try_into().unwrap());
-        log::info!("offset: {:#x}", offset);
-    
         let new_base = unsafe { base_address.cast::<u8>().offset(0xd) }; // +0xd is call    nt!PspSetCreateProcessNotifyRoutine
-        log::info!("New base address: {:?}", new_base);
-
         let new_offset = offset + 0x5; // offset + 5: because i is a the start of call and not the end
-        log::info!("New offset: {:#x}", new_offset);
-
         let psp_set_create_process_notify = unsafe { new_base.cast::<u8>().offset(new_offset as isize) as *const u8 };
-        log::info!("New base + new offset = psp_set_create_process_notify: {:?}", psp_set_create_process_notify);
 
-        // Inside PspSetCreateProcessNotifyRoutine
+        // Search for the lea r13 PspSetCreateProcessNotifyRoutine
 
         let psp_func_slice: &[u8] = unsafe { 
             core::slice::from_raw_parts(psp_set_create_process_notify, 0x70) //lea r13,[nt!PspCreateProcessNotifyRoutine (<address>)]
         };
 
-        log::info!("Function bytes {:#x?}", psp_func_slice);
-
         let needle = [0x4c, 0x8D]; //lea r13,
 
         if let Some(y) = psp_func_slice.windows(needle.len()).position(|x| *x == needle) {
-            log::info!("The lea starts a byte: {:?}", i);
             
             let position = y + 3; // 3 byte after lea r13, is the offset
-            log::info!("positon: {:?}", position);
-
             let offset_slice = &psp_func_slice[position..position + 4]; //u32::from_le_bytes takes 4 slices
-            log::info!("offset_slice: {:#x?}", offset_slice);
             let offset = u32::from_le_bytes(offset_slice.try_into().unwrap());
-            log::info!("offset: {:#x}", offset);
-
             let new_base = unsafe { psp_set_create_process_notify.cast::<u8>().offset(0x62) }; // +0x62 is lea r13,[nt!PspCreateProcessNotifyRoutine (<address>)]
-            log::info!("New base address: {:?}", new_base);
-
             let new_offset = offset + 0x7; // offset + 6: because i is a the start of lea and not the end
-            log::info!("New offset: {:#x}", new_offset);
-
-            
             let psp_set_create_process_notify_array = unsafe { new_base.cast::<u8>().offset(new_offset as isize) };
-            log::info!("New base + new offset = psp_set_create_process_notify_array: {:?}", psp_set_create_process_notify_array);
 
-            return psp_set_create_process_notify_array;
+            return Some(psp_set_create_process_notify_array);
         }
     }
 
-    return null_mut();
+    return None;
 }
 
 /*

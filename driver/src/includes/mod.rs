@@ -23,6 +23,10 @@ extern "system" {
     pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
 }
 
+extern "C" {
+    pub fn strlen(s: *const i8) -> usize;
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct ProcessPrivileges {
