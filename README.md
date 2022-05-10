@@ -1,6 +1,6 @@
-# Rust Windows Kernel Driver for Red Teamers
+# Windows Kernel Driver in Rust aka Rusty Rootkit for (Red Teamers)
 
-## Features (IN PROGRESS)
+## Features (Development in progress, BSODs may occur)
 
 * Protect / unprotect process (Done)
 * Elevate / remove token privileges (Done)
