@@ -80,15 +80,15 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     
     let bytes: u32 = 0;
     let mut callbacks: [CallBackInformation; 64] = unsafe{ std::mem::zeroed() };
-
+    println!("callbacks: {:?}", callbacks.as_mut_ptr());
     
     let device_io_control_result = unsafe { 
         DeviceIoControl(driver_handle,
         IOCTL_PROCESS_ENUM_CALLBACKS,
         null_mut(),
         0,
-        &mut callbacks as *mut _ as *mut c_void,
-        size_of::<CallBackInformation>() as u32,
+        callbacks.as_mut_ptr() as *mut _,
+        callbacks.len() as u32,
         bytes as *mut u32,
         null_mut())
     };
@@ -100,6 +100,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     println!("[+] DeviceIoControl Success for enumerate callbacks");
 
     let number_of_callbacks = (bytes / size_of::<CallBackInformation>() as u32) as usize;
+    println!("Number of callbacks: {:?}", number_of_callbacks);
 
     for i in 0..number_of_callbacks {
         if callbacks[i].pointer > 0 {

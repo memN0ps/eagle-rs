@@ -152,14 +152,16 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
 
                 if callback > 0 {
                     log::info!("Calling search_loaded_modules");
-                    unsafe { search_loaded_modules(modules, number_of_modules, user_buffer.cast::<u8>().offset(i) as *mut CallBackInformation) };
+                    unsafe { search_loaded_modules(modules, number_of_modules, user_buffer.offset(i)) };
                 }
+
+                byte_io += size_of::<CallBackInformation>();
             }
 
+            log::info!("user_buffer: {:?}", user_buffer);
             //THE END
             log::info!("Enumeration of modules complete");
             status = STATUS_SUCCESS;
-            byte_io += size_of::<CallBackInformation>();
             unsafe { ExFreePool(modules as u64) };
         },
         _ => {
@@ -177,7 +179,6 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
 fn complete_request(irp: &mut IRP, status: NTSTATUS, byte_io: usize) -> NTSTATUS {
     unsafe { *(irp.IoStatus.__bindgen_anon_1.Status_mut()) = status };
     irp.IoStatus.Information = byte_io;
-    irp.IoStatus.Information = 0;
     unsafe { IoCompleteRequest(irp, IO_NO_INCREMENT) };
 
     return status;

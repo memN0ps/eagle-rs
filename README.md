@@ -163,3 +163,4 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://twitter.com/the_secret_club/status/1386215138148196353 Discord (hugsy, themagicalgamer)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/
+* https://posts.specterops.io/mimidrv-in-depth-4d273d19e148
