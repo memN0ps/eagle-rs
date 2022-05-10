@@ -93,24 +93,15 @@ pub fn get_loaded_modules() -> Option<(*mut AuxModuleExtendedInfo, u32)> {
     return Some((module, number_of_modules));
 }
 
-/// Search the loaded modules
+/// Search the loaded modules (kernel callbacks)
 pub fn search_loaded_modules(modules: *mut AuxModuleExtendedInfo, number_of_modules: u32, module_info: *mut CallBackInformation) -> NTSTATUS {
     
     for i  in 0..number_of_modules {
         let start_address = unsafe { (*modules.offset(i as isize)).basic_info.image_base };
-        log::info!("start address: {:?}", start_address);
-        
         let image_size = unsafe { (*modules.offset(i as isize)).image_size };
-        log::info!("image_size: {:?}", image_size);
         
         let end_address = start_address as u64 + image_size as u64;
-        log::info!("end_address: {:#x}", end_address);
-
-        let module_info_pointer = unsafe { ((*module_info).pointer &  0xfffffffffffffff8) as *mut u64 };
-        log::info!("(((*module_info).pointer &  0xfffffffffffffff8) as * mut u64) {:?}", module_info_pointer);
-
         let raw_pointer = unsafe { *(((*module_info).pointer &  0xfffffffffffffff8) as *mut u64) };
-        log::info!("raw_pointer: {:#x}", raw_pointer);
 
         if raw_pointer > start_address as u64 && raw_pointer < end_address {
             let dst = unsafe { (*module_info).module_name.as_mut() };
@@ -119,11 +110,7 @@ pub fn search_loaded_modules(modules: *mut AuxModuleExtendedInfo, number_of_modu
                 (*modules.offset(i as isize)).full_path_name.as_mut_ptr().offset((*modules.offset(i as isize)).file_name_offset as isize)
             };
 
-            log::info!("src: {:?}", src);
-            log::info!("strlen(src): {:?}", unsafe { strlen(src as *const i8) });
-            
             unsafe { copy_nonoverlapping(src, dst.as_mut_ptr(), strlen(src as *const i8)) };
-            log::info!("dst: {:?}", dst);
             break;
         }
     }

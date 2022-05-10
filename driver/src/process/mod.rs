@@ -94,8 +94,6 @@ pub fn get_eprocess_protection_offset() -> isize {
     let base_address = get_function_base_address(unicode_function_name);
     let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 5) };
 
-    //log::info!("Function Bytes in Decimal: {:?}", function_bytes);
-
     let slice = &function_bytes[2..4];
     let protection_offset = u16::from_le_bytes(slice.try_into().unwrap());
     log::info!("EPROCESS.Protection: {:#x}", protection_offset);
@@ -110,8 +108,6 @@ pub fn get_eprocess_signature_level_offset() -> isize {
     
     let base_address = get_function_base_address(unicode_function_name);
     let function_bytes: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 20) };
-
-    //log::info!("Function Bytes in Decimal: {:?}", function_bytes);
 
     let slice = &function_bytes[15..17];
     let signature_level_offset = u16::from_le_bytes(slice.try_into().unwrap());
