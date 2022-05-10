@@ -1,4 +1,4 @@
-# Windows Kernel Driver in Rust aka Rusty Rootkit for (Red Teamers)
+# Windows Kernel Driver in Rust aka Rusty Rootkit for Red Teamers
 
 ## Features (Development in progress, BSODs may occur)
 
