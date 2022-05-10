@@ -107,7 +107,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
 
     for i in 0..64 {
         if callbacks[i].pointer > 0 {
-            let name = std::str::from_utf8(&callbacks[i].module_name).unwrap();
+            let name = std::str::from_utf8(&callbacks[i].module_name).unwrap().trim_end_matches('\0');
             println!("[{:?}] {:#x} ({:?})", i, callbacks[i].pointer, name);
         }
     }
