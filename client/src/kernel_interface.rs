@@ -80,7 +80,7 @@ pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
 /// Enumerate Kernel Callbacks
 pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     
-    let bytes: u32 = 0;
+    let mut bytes: u32 = 0;
     let mut callbacks: [CallBackInformation; 64] = unsafe{ std::mem::zeroed() };
     println!("callbacks: {:?}", callbacks.as_mut_ptr());
     
@@ -90,8 +90,8 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
         null_mut(),
         0,
         callbacks.as_mut_ptr() as *mut _,
-        callbacks.len() as u32,
-        bytes as *mut u32,
+        (callbacks.len() * size_of::<CallBackInformation>()) as u32,
+        &mut bytes,
         null_mut())
     };
 
@@ -101,6 +101,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
 
     println!("[+] DeviceIoControl Success for enumerate callbacks");
 
+    println!("Bytes returned: {:?}", bytes);
     let number_of_callbacks = (bytes / size_of::<CallBackInformation>() as u32) as usize;
     println!("Number of callbacks: {:?}", number_of_callbacks);
 

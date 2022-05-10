@@ -145,25 +145,20 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
             // The start
             for i in 0..64 {
                 let p_callback = unsafe { psp_array_address.cast::<u8>().offset(i * 8) };
-                log::info!("[{:?}] Kernel Callback Address: {:?}", i, p_callback);
+                log::info!("[{:?}] Kernel callback address: {:?}", i, p_callback);
 
                 let callback = unsafe { *(p_callback as *const u64) };
                 unsafe { (*user_buffer.offset(i)).pointer = callback };
 
                 if callback > 0 {
-                    log::info!("Calling search_loaded_modules");
                     let callback_info = unsafe { user_buffer.offset(i) };
-
-                    log::info!("{:?} OFFSET....................................................: {:?}", i, callback_info);
                     unsafe { search_loaded_modules(modules, number_of_modules, callback_info) };
                 }
 
                 byte_io += size_of::<CallBackInformation>();
             }
 
-            log::info!("user_buffer: {:?}", user_buffer);
-            //THE END
-            log::info!("Enumeration of modules complete");
+            log::info!("IOCTL_PROCESS_ENUM_CALLBACKS complete");
             status = STATUS_SUCCESS;
             unsafe { ExFreePool(modules as u64) };
         },
