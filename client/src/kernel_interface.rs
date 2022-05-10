@@ -75,6 +75,8 @@ pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
 }
 
 
+
+
 /// Enumerate Kernel Callbacks
 pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     
@@ -102,7 +104,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     let number_of_callbacks = (bytes / size_of::<CallBackInformation>() as u32) as usize;
     println!("Number of callbacks: {:?}", number_of_callbacks);
 
-    for i in 0..number_of_callbacks {
+    for i in 0..64 {
         if callbacks[i].pointer > 0 {
             let name = std::str::from_utf8(&callbacks[i].module_name).unwrap();
             println!("[{:?}] {:#x} ({:?})", i, callbacks[i].pointer, name);

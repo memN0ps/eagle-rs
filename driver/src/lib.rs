@@ -152,7 +152,10 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
 
                 if callback > 0 {
                     log::info!("Calling search_loaded_modules");
-                    unsafe { search_loaded_modules(modules, number_of_modules, user_buffer.offset(i)) };
+                    let callback_info = unsafe { user_buffer.offset(i) };
+
+                    log::info!("{:?} OFFSET....................................................: {:?}", i, callback_info);
+                    unsafe { search_loaded_modules(modules, number_of_modules, callback_info) };
                 }
 
                 byte_io += size_of::<CallBackInformation>();
