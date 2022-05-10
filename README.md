@@ -5,11 +5,11 @@
 * Protect / unprotect process (Done)
 * Elevate / remove token privileges (Done)
 * Enumerate / remove kernel callbacks (Todo)
-        - PsSetCreateProcessNotifyRoutine
-        - PsSetCreateThreadNotifyRoutine
-        - PsSetLoadImageNotifyRoutine
-        - CmRegisterCallbackEx
-        - ObRegisterCallbacks
+  * PsSetCreateProcessNotifyRoutine
+  * PsSetCreateThreadNotifyRoutine
+  * PsSetLoadImageNotifyRoutine
+  * CmRegisterCallbackEx
+  * ObRegisterCallbacks
 * DSE enable/disable (Todo)
 * Hide process (Todo)
 * Kernel mode manual mapper (Todo)
@@ -75,7 +75,9 @@ Otherwise you can always get an [extended validation (EV) code signing certifica
 
 ## Kernel Callbacks
 
-Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `PsSetCreateProcessNotifyRoutine` or when a thread is created or deleted aka `PsSetCreateThreadNotifyRoutine` or when a DLL is mapped into memory `PsSetLoadImageNotifyRoutine` or `CmRegisterCallbackEx` when a registry is created or `ObRegisterCallbacks` when a handle is created. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
+Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `PsSetCreateProcessNotifyRoutine` or when a thread is created or deleted aka `PsSetCreateThreadNotifyRoutine` or when a DLL is mapped into memory aka `PsSetLoadImageNotifyRoutine` or when a registry is created aka `CmRegisterCallbackEx` or when a handle is created `ObRegisterCallbacks`. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
+
+Anti-cheats or EDRs may choose to block/flag the process or thread from being created or block the DLL from being mapped or handles to be stripped.
 
 
 ## Enable `Test Mode` or `Test Signing` Mode 
@@ -135,8 +137,10 @@ SERVICE_NAME: Eagle
 
 A better way to code Windows Kernel Drivers in Rust is to create bindings as shown in the references below. However, using someone else's bindings hides the functionality and this is why I made it the classic way unless, of course, you create your own bindings. I plan on refactoring the code in the future but for now, it will be a bit messy and incomplete.
 
-I made this project for fun and because I really like Rust and Windows Internals. This is obviously not perfect or finished yet. if you would like to learn more about Windows Kernel Programming then feel free to check out the references below.
+I made this project for fun and because I really like Rust and Windows Internals. This is obviously not perfect or finished yet. if you would like to learn more about Windows Kernel Programming then feel free to check out the references below. The prefered safe and robust way of coding Windows Kernel Drivers in Rust is shown here:
 
+* https://codentium.com/guides/windows-dev/
+* https://github.com/StephanvanSchaik/windows-kernel-rs/ 
 
 ## References and Credits
 
@@ -151,8 +155,11 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://guidedhacking.com/
 * https://www.unknowncheats.me/
 * https://gamehacking.academy/
+* https://secret.club/
+* https://back.engineering/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
 * https://discord.com/invite/rust-lang-community (Thanks to: WithinRafael, Nick12, Zuix, kpreid and many others)
+* https://twitter.com/the_secret_club/status/1386215138148196353 Discord (hugsy, themagicalgamer)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/
