@@ -82,7 +82,6 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     
     let mut bytes: u32 = 0;
     let mut callbacks: [CallBackInformation; 64] = unsafe{ std::mem::zeroed() };
-    println!("callbacks: {:?}", callbacks.as_mut_ptr());
     
     let device_io_control_result = unsafe { 
         DeviceIoControl(driver_handle,
@@ -99,13 +98,10 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
         panic!("[-] Failed to call DeviceIoControl");
     }
 
-    println!("[+] DeviceIoControl Success for enumerate callbacks");
-
-    println!("Bytes returned: {:?}", bytes);
     let number_of_callbacks = (bytes / size_of::<CallBackInformation>() as u32) as usize;
-    println!("Number of callbacks: {:?}", number_of_callbacks);
+    println!("Total Kernel Callbacks: {:?}", number_of_callbacks);
 
-    for i in 0..64 {
+    for i in 0..number_of_callbacks {
         if callbacks[i].pointer > 0 {
             let name = std::str::from_utf8(&callbacks[i].module_name).unwrap().trim_end_matches('\0');
             println!("[{:?}] {:#x} ({:?})", i, callbacks[i].pointer, name);

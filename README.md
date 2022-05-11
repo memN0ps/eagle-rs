@@ -14,6 +14,78 @@
 * Hide process (Todo)
 * Kernel mode manual mapper (Todo)
 
+## Usage
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe -h
+client 0.1.0
+
+USAGE:
+    client.exe <SUBCOMMAND>
+
+OPTIONS:
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+SUBCOMMANDS:
+    callbacks
+    help         Print this message or the help of the given subcommand(s)
+    process
+PS C:\Users\memn0ps\Desktop> .\client.exe process -h
+client.exe-process
+
+USAGE:
+    client.exe process --name <PROCESS> <--protect|--unprotect|--elevate>
+
+OPTIONS:
+    -e, --elevate           Elevate all token privileges
+    -h, --help              Print help information
+    -n, --name <PROCESS>    Target process name
+    -p, --protect           Protect a process
+    -u, --unprotect         Unprotect a process
+PS C:\Users\memn0ps\Desktop> .\client.exe callbacks -h
+client.exe-callbacks
+
+USAGE:
+    client.exe callbacks <--enumerate|--patch>
+
+OPTIONS:
+    -e, --enumerate    Enumerate kernel callbacks
+    -h, --help         Print help information
+    -p, --patch        Patch kernel callbacks
+PS C:\Users\memn0ps\Desktop>
+```
+
+## Examples
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --enumerate
+Total Kernel Callbacks: 12
+[0] 0xffffbd8d3d2502df ("ntoskrnl.exe")
+[1] 0xffffbd8d3d2fe81f ("cng.sys")
+[2] 0xffffbd8d3db2bc8f ("WdFilter.sys")
+[3] 0xffffbd8d3db2bf8f ("ksecdd.sys")
+[4] 0xffffbd8d3db2c0df ("tcpip.sys")
+[5] 0xffffbd8d3f10705f ("iorate.sys")
+[6] 0xffffbd8d3f10765f ("CI.dll")
+[7] 0xffffbd8d3f10789f ("dxgkrnl.sys")
+[8] 0xffffbd8d3fa37cff ("vm3dmp.sys")
+[9] 0xffffbd8d3f97104f ("peauth.sys")
+[10] 0xffffbd8d43af074f ("Eagle.sys")
+[11] 0xffffbd8d3f971e8f ("MpKslDrv.sys")
+PS C:\Users\memn0ps\Desktop>
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --protect
+PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --elevate
+```
+
+![Default](./notepad_default.png)
+![Protect](./notepad_protect.png)
+![Elevate](./notepad_elevate.png)
+
+
 ## [Install Rust](https://www.rust-lang.org/tools/install)
 
 "To start using Rust, download the installer, then run the program and follow the onscreen instructions. You may need to install the [Visual Studio C++ Build tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) when prompted to do so. If you are not on Windows see ["Other Installation Methods"](https://forge.rust-lang.org/infra/other-installation-methods.html).

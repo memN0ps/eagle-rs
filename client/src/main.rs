@@ -2,50 +2,64 @@ use sysinfo::{Pid, SystemExt, ProcessExt};
 use winapi::um::{fileapi::{CreateFileA, OPEN_EXISTING}, winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE}, handleapi::CloseHandle};
 use std::{ffi::CString, ptr::null_mut};
 mod kernel_interface;
-use clap::Parser;
-use clap::ArgGroup;
+use clap::{Args, Parser, Subcommand, ArgGroup};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
-#[clap(group(
-            ArgGroup::new("client")
-                .required(true)
-                .args(&["protect", "unprotect", "token", "enumerate", "patch"]),
-))]
 struct Cli {
-    /// Target process name
-    #[clap(long, value_name = "NAME")]
-    process: String,
+    #[clap(subcommand)]
+    command: Commands,
+}
 
-    /// Elevate process privileges
-    #[clap(long)]
+#[derive(Subcommand)]
+enum Commands {
+   Process(Process),
+   Callbacks(Callbacks),
+}
+
+#[derive(Args)]
+#[clap(group(
+    ArgGroup::new("process")
+        .required(true)
+        .args(&["protect", "unprotect", "elevate"]),
+))]
+struct Process {
+    /// Target process name
+    #[clap(long, short, value_name = "PROCESS")]
+    name: String,
+
+    /// Protect a process
+    #[clap(long, short)]
     protect: bool,
 
-    /// Restore process privileges
-    #[clap(long)]
+    /// Unprotect a process
+    #[clap(long, short)]
     unprotect: bool,
 
-    /// Elevate token privileges
-    #[clap(long)]
-    token: bool,
+    /// Elevate all token privileges
+    #[clap(long, short)]
+    elevate: bool,
+}
 
+#[derive(Args)]
+#[clap(group(
+    ArgGroup::new("callbacks")
+        .required(true)
+        .args(&["enumerate", "patch"]),
+))]
+struct Callbacks {
     /// Enumerate kernel callbacks
-    #[clap(long)]
+    #[clap(long, short)]
     enumerate: bool,
 
     /// Patch kernel callbacks
-    #[clap(long)]
+    #[clap(long, short)]
     patch: bool,
 }
 
 fn main() {
 
     let cli = Cli::parse();
-
-    let process_id = get_process_id_by_name(cli.process.as_str()) as u32;
-    //let protect = args.protect.unwrap();
-    //let enumerate = args.enumerate.unwrap();
-
 
     let file = CString::new("\\\\.\\Eagle").unwrap().into_raw() as *const i8;
     let driver_handle = unsafe { 
@@ -63,20 +77,25 @@ fn main() {
         panic!("[-] Failed to get a handle to the driver");
     }
 
-    println!("File Handle {:?}", driver_handle);
-    println!("Process ID: {:?}", process_id);
+    match &cli.command {
+        Commands::Process(p) => {
+            let process_id = get_process_id_by_name(p.name.as_str()) as u32;
+            
+            if p.protect {
+                kernel_interface::protect_process(process_id, driver_handle);
+            } else if p.unprotect {
+                kernel_interface::unprotect_process(process_id, driver_handle);
+            }
 
-
-    if cli.protect {
-        kernel_interface::protect_process(process_id, driver_handle);
-    } else if cli.unprotect {
-        kernel_interface::unprotect_process(process_id, driver_handle);
-    } else if cli.token {
-        kernel_interface::enable_tokens(process_id, driver_handle);
-    } else if cli.enumerate {
-        kernel_interface::enumerate_callbacks(driver_handle);
-    } else {
-        println!("Invalid Options");
+            if p.elevate {
+                kernel_interface::enable_tokens(process_id, driver_handle);
+            }
+        }
+        Commands::Callbacks(c) => {
+            if c.enumerate {
+                kernel_interface::enumerate_callbacks(driver_handle);
+            }
+        }
     }
 
     unsafe { CloseHandle(driver_handle) };
