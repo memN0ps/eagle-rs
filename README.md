@@ -173,7 +173,7 @@ Otherwise you can always get an [extended validation (EV) code signing certifica
 
 ## Kernel Callbacks
 
-Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `PsSetCreateProcessNotifyRoutine` or when a thread is created or deleted aka `PsSetCreateThreadNotifyRoutine` or when a DLL is mapped into memory aka `PsSetLoadImageNotifyRoutine` or when a registry is created aka `CmRegisterCallbackEx` or when a handle is created `ObRegisterCallbacks`. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
+Kernel Callbacks are used to notify a Windows Kernel Driver when a specific event occurs such as when a process is created or exits aka `PsSetCreateProcessNotifyRoutine` or when a thread is created or deleted aka `PsSetCreateThreadNotifyRoutine` or when a DLL is mapped into memory aka `PsSetLoadImageNotifyRoutine` or when a registry is created aka `CmRegisterCallbackEx` or when a handle is created aka `ObRegisterCallbacks`. Anti-cheats have been using these for a very long time and AVs, EDRs and Sysmon are also using these.
 
 Anti-cheats or EDRs may choose to block/flag the process or thread from being created or block the DLL from being mapped or handles to be stripped.
 
