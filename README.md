@@ -79,6 +79,8 @@ Total Kernel Callbacks: 12
 [11] 0xffffbd8d3f971e8f ("MpKslDrv.sys")
 
 PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --patch 10
+
+PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --enumerate
 Total Kernel Callbacks: 11
 [0] 0xffffbd8d3d2502df ("ntoskrnl.exe")
 [1] 0xffffbd8d3d2fe81f ("cng.sys")
