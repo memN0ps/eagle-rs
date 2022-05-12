@@ -4,12 +4,12 @@
 
 * Protect / unprotect process (Done)
 * Elevate / remove token privileges (Done)
-* Enumerate / remove kernel callbacks (Todo)
-  * PsSetCreateProcessNotifyRoutine
-  * PsSetCreateThreadNotifyRoutine
-  * PsSetLoadImageNotifyRoutine
-  * CmRegisterCallbackEx
-  * ObRegisterCallbacks
+* Enumerate / remove kernel callbacks
+  * PsSetCreateProcessNotifyRoutine (Done)
+  * PsSetCreateThreadNotifyRoutine (Todo)
+  * PsSetLoadImageNotifyRoutine (Todo)
+  * CmRegisterCallbackEx (Todo)
+  * ObRegisterCallbacks (Todo)
 * DSE enable/disable (Todo)
 * Hide process (Todo)
 * Kernel mode manual mapper (Todo)
@@ -31,6 +31,8 @@ SUBCOMMANDS:
     callbacks
     help         Print this message or the help of the given subcommand(s)
     process
+
+
 PS C:\Users\memn0ps\Desktop> .\client.exe process -h
 client.exe-process
 
@@ -43,20 +45,22 @@ OPTIONS:
     -n, --name <PROCESS>    Target process name
     -p, --protect           Protect a process
     -u, --unprotect         Unprotect a process
+
+
 PS C:\Users\memn0ps\Desktop> .\client.exe callbacks -h
 client.exe-callbacks
 
 USAGE:
-    client.exe callbacks <--enumerate|--patch>
+    client.exe callbacks <--enumerate|--patch <PATCH>>
 
 OPTIONS:
-    -e, --enumerate    Enumerate kernel callbacks
-    -h, --help         Print help information
-    -p, --patch        Patch kernel callbacks
+    -e, --enumerate        Enumerate kernel callbacks
+    -h, --help             Print help information
+    -p, --patch <PATCH>    Patch kernel callbacks 0-63
 PS C:\Users\memn0ps\Desktop>
 ```
 
-## Examples
+## Example 1: Enumerate and patch kernel callbacks
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --enumerate
@@ -73,16 +77,36 @@ Total Kernel Callbacks: 12
 [9] 0xffffbd8d3f97104f ("peauth.sys")
 [10] 0xffffbd8d43af074f ("Eagle.sys")
 [11] 0xffffbd8d3f971e8f ("MpKslDrv.sys")
-PS C:\Users\memn0ps\Desktop>
+
+PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --patch 10
+Total Kernel Callbacks: 11
+[0] 0xffffbd8d3d2502df ("ntoskrnl.exe")
+[1] 0xffffbd8d3d2fe81f ("cng.sys")
+[2] 0xffffbd8d3db2bc8f ("WdFilter.sys")
+[3] 0xffffbd8d3db2bf8f ("ksecdd.sys")
+[4] 0xffffbd8d3db2c0df ("tcpip.sys")
+[5] 0xffffbd8d3f10705f ("iorate.sys")
+[6] 0xffffbd8d3f10765f ("CI.dll")
+[7] 0xffffbd8d3f10789f ("dxgkrnl.sys")
+[8] 0xffffbd8d3fa37cff ("vm3dmp.sys")
+[9] 0xffffbd8d3f97104f ("peauth.sys")
+[10] 0xffffbd8d3f971e8f ("MpKslDrv.sys")
 ```
+
+## Example 2: Protect a process and elevate token privileges
+
+Default state
+![Default](./notepad_default.png)
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --protect
 PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --elevate
 ```
 
-![Default](./notepad_default.png)
+Protected state
 ![Protect](./notepad_protect.png)
+
+All tokens elevated
 ![Elevate](./notepad_elevate.png)
 
 

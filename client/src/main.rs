@@ -52,9 +52,9 @@ struct Callbacks {
     #[clap(long, short)]
     enumerate: bool,
 
-    /// Patch kernel callbacks
+    /// Patch kernel callbacks 0-63
     #[clap(long, short)]
-    patch: bool,
+    patch: Option<u32>,
 }
 
 fn main() {
@@ -94,6 +94,10 @@ fn main() {
         Commands::Callbacks(c) => {
             if c.enumerate {
                 kernel_interface::enumerate_callbacks(driver_handle);
+            } else if c.patch.unwrap() > 0 && c.patch.unwrap() < 64 {
+                kernel_interface::patch_callback(c.patch.unwrap(), driver_handle);
+            } else {
+                println!("[-] Invalid arguments");
             }
         }
     }
