@@ -12,7 +12,6 @@ pub enum SystemInformationClass {
 }
 
 #[link(name = "ntoskrnl")]
-//#[link(name = "ntoskrnl")]
 extern "system" {
     #[allow(dead_code)]
     pub fn MmIsAddressValid(virtual_address: PVOID) -> bool;
@@ -58,7 +57,7 @@ pub struct SystemModule {
 #[derive(Debug, Clone, Copy)]
 pub struct SystemModuleInformation {
     pub modules_count: u32,
-    pub modules: [SystemModule; 1],
+    pub modules: [SystemModule; 256],
 }
 
 #[repr(C)]

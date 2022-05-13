@@ -1,4 +1,4 @@
-use core::{ptr::{null_mut, null}, mem::{zeroed, size_of}};
+use core::{ptr::{null_mut, null}, str::from_utf8};
 
 use kernel_alloc::nt::{ExAllocatePool};
 use winapi::{shared::{ntdef::{NT_SUCCESS}}, ctypes::c_void, um::winnt::RtlZeroMemory};
@@ -55,11 +55,17 @@ pub fn get_module_base(module_name: *const i8) -> *mut c_void {
     let mut p_module: *mut c_void = null_mut();
     log::info!("Modules 1: {:?}", p_module);
 
+    log::info!("Count: {:?}", unsafe { (*module_info).modules_count as usize });
+
 
     for i in unsafe { 0..(*module_info).modules_count as usize } {
 
         let image_name = unsafe { (*module_info).modules[i].image_name };
+        let name = from_utf8(&image_name).unwrap().trim_end_matches('\0');
+
         let image_base = unsafe { (*module_info).modules[i].image_base };
+
+        log::info!("[{:?}] Module Name: {:?} {:?}", i, name, image_base);
 
         if unsafe { strstr(image_name.as_ptr(), module_name as *const u8) != null() } {
             log::info!("[+] Module name: {:?} and module base: {:?}", image_name, image_base);
