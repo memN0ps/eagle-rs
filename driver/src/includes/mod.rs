@@ -1,9 +1,14 @@
-use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::USHORT}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
+use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::{USHORT, PULONG}}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
 
 #[link(name = "aux_klib", kind = "static")]
 extern "system" {
     pub fn AuxKlibInitialize() -> NTSTATUS;
     pub fn AuxKlibQueryModuleInformation(buffer_size: *mut u32, element_size: u32, query_info: *mut c_void) -> NTSTATUS;
+}
+
+#[repr(C)]
+pub enum SystemInformationClass {
+    SystemModuleInformation = 11,
 }
 
 #[link(name = "ntoskrnl")]
@@ -21,10 +26,39 @@ extern "system" {
     pub fn ObfDereferenceObject(object: PVOID);
 
     pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
+
 }
+
+extern "system" {
+    pub fn ZwQuerySystemInformation(system_information_class: SystemInformationClass, system_information: PVOID, system_information_length: ULONG, return_length: PULONG) -> NTSTATUS;
+}
+
 
 extern "C" {
     pub fn strlen(s: *const i8) -> usize;
+    pub fn strstr(haystack: *const u8, needle: *const u8) -> *const u8;
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SystemModule {
+    pub section: *mut c_void,
+    pub mapped_base: *mut c_void,
+    pub image_base: *mut c_void,
+    pub size: u32,
+    pub flags: u32,
+    pub index: u8,
+    pub name_length: u8,
+    pub load_count: u8,
+    pub path_length: u8,
+    pub image_name: [u8; 256],
+} 
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SystemModuleInformation {
+    pub modules_count: u32,
+    pub modules: [SystemModule; 1],
 }
 
 #[repr(C)]
