@@ -1,16 +1,16 @@
-use core::{ptr::{null_mut, null}, str::from_utf8};
-
+use core::{ptr::{null_mut}};
+use bstr::ByteSlice;
 use kernel_alloc::nt::{ExAllocatePool};
 use winapi::{shared::{ntdef::{NT_SUCCESS}}, ctypes::c_void, um::winnt::RtlZeroMemory};
 
-use crate::{includes::{strstr}, includes::SystemInformationClass, includes::SystemModuleInformation, includes::ZwQuerySystemInformation};
+use crate::{includes::SystemInformationClass, includes::SystemModuleInformation, includes::ZwQuerySystemInformation};
 
-pub fn get_module_base(module_name: *const i8) -> *mut c_void {
+pub fn get_module_base(module_name: &[u8]) -> *mut c_void {
 
     let mut bytes = 0;
 
     // Get buffer size
-    let status = unsafe { ZwQuerySystemInformation(
+    let _status = unsafe { ZwQuerySystemInformation(
         SystemInformationClass::SystemModuleInformation,
             null_mut(),
             0,
@@ -53,27 +53,20 @@ pub fn get_module_base(module_name: *const i8) -> *mut c_void {
 
 
     let mut p_module: *mut c_void = null_mut();
-    log::info!("Modules 1: {:?}", p_module);
-
-    log::info!("Count: {:?}", unsafe { (*module_info).modules_count as usize });
-
+    log::info!("Module count: {:?}", unsafe { (*module_info).modules_count as usize });
 
     for i in unsafe { 0..(*module_info).modules_count as usize } {
 
         let image_name = unsafe { (*module_info).modules[i].image_name };
-        let name = from_utf8(&image_name).unwrap().trim_end_matches('\0');
-
         let image_base = unsafe { (*module_info).modules[i].image_base };
 
-        log::info!("[{:?}] Module Name: {:?} {:?}", i, name, image_base);
-
-        if unsafe { strstr(image_name.as_ptr(), module_name as *const u8) != null() } {
+        if let Some(_) = image_name.find(module_name) {
             log::info!("[+] Module name: {:?} and module base: {:?}", image_name, image_base);
             p_module = image_base;
             break;
         }
     }
-    log::info!("Modules 2: {:?}", p_module);
+    log::info!("CI.DLL base address: {:?}", p_module);
 
     return p_module;
 }

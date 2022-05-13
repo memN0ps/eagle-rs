@@ -12,7 +12,6 @@ mod dse;
 
 use core::{panic::PanicInfo, mem::{size_of}};
 use core::ptr::null_mut;
-use alloc::ffi::CString;
 use kernel_alloc::nt::ExFreePool;
 use winapi::{km::wdm::IO_PRIORITY::IO_NO_INCREMENT, shared::ntstatus::{STATUS_BUFFER_TOO_SMALL, STATUS_INVALID_PARAMETER}};
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
@@ -52,9 +51,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
 
     log::info!("Driver Entry called");
 
-    let dll_name = CString::new("CI.dll").unwrap();
-
-    get_module_base(dll_name.as_ptr());
+    get_module_base(b"CI.dll");
 
     driver.DriverUnload = Some(driver_unload);
 
