@@ -10,7 +10,7 @@
   * PsSetLoadImageNotifyRoutine (Todo)
   * CmRegisterCallbackEx (Todo)
   * ObRegisterCallbacks (Todo)
-* DSE enable/disable (Todo)
+* DSE enable/disable (Done)
 * Hide process (Todo)
 * Kernel mode manual mapper (Todo)
 
@@ -110,6 +110,33 @@ Protected state
 
 All tokens elevated
 ![Elevate](./notepad_elevate.png)
+
+## Example 3: Enable / Disable Driver Signature Enforcement (DSE)
+
+Enable
+```
+PS C:\Users\User\Desktop> .\client.exe dse --enable
+Bytes returned: 16
+[+] Driver Signature Enforcement (DSE) enabled: 0x6
+```
+```
+0: kd> db 0xfffff8005a6683b8 L1
+fffff800`5a6683b8  06 
+```
+
+Disable
+
+```
+PS C:\Users\User\Desktop> .\client.exe dse --disable
+Bytes returned: 16
+[+] Driver Signature Enforcement (DSE) disabled: 0xe
+```
+
+```
+0: kd> db 0xfffff8005a6683b8 L1
+fffff800`5a6683b8  0e
+```
+
 
 
 ## [Install Rust](https://www.rust-lang.org/tools/install)
@@ -257,7 +284,7 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://back.engineering/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
-* https://discord.com/invite/rust-lang-community (Thanks to: WithinRafael, Nick12, Zuix, DuckThatSits, matt1992, kpreid and many others)
+* https://discord.com/invite/rust-lang-community (Big thanks to: WithinRafael, Nick12, Zuix, DuckThatSits, matt1992, kpreid and many others)
 * https://twitter.com/the_secret_club/status/1386215138148196353 Discord (hugsy, themagicalgamer)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/
