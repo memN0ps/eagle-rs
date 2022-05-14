@@ -15,6 +15,7 @@ struct Cli {
 enum Commands {
    Process(Process),
    Callbacks(Callbacks),
+   DSE(DSE),
 }
 
 #[derive(Args)]
@@ -55,6 +56,22 @@ struct Callbacks {
     /// Patch kernel callbacks 0-63
     #[clap(long, short)]
     patch: Option<u32>,
+}
+
+#[derive(Args)]
+#[clap(group(
+    ArgGroup::new("dse")
+        .required(true)
+        .args(&["enable", "disable"]),
+))]
+struct DSE {
+    /// Enable Driver Signature Enforcement (DSE)
+    #[clap(long, short)]
+    enable: bool,
+
+    /// Disable Driver Signature Enforcement (DSE)
+    #[clap(long, short)]
+    disable: bool,
 }
 
 fn main() {
@@ -98,6 +115,13 @@ fn main() {
                 kernel_interface::patch_callback(c.patch.unwrap(), driver_handle);
             } else {
                 println!("[-] Invalid arguments");
+            }
+        }
+        Commands::DSE(d) => {
+            if d.enable {
+                kernel_interface::enable_or_disable_dse(driver_handle, true);
+            } else if d.disable {
+                kernel_interface::enable_or_disable_dse(driver_handle, false);
             }
         }
     }

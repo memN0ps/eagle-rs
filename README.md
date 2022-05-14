@@ -257,8 +257,11 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://back.engineering/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
-* https://discord.com/invite/rust-lang-community (Thanks to: WithinRafael, Nick12, Zuix, kpreid and many others)
+* https://discord.com/invite/rust-lang-community (Thanks to: WithinRafael, Nick12, Zuix, DuckThatSits, matt1992, kpreid and many others)
 * https://twitter.com/the_secret_club/status/1386215138148196353 Discord (hugsy, themagicalgamer)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/
 * https://posts.specterops.io/mimidrv-in-depth-4d273d19e148
+* https://br-sn.github.io/Removing-Kernel-Callbacks-Using-Signed-Drivers/
+* https://www.mdsec.co.uk/2021/06/bypassing-image-load-kernel-callbacks/
+* https://m0uk4.gitbook.io/notebooks/mouka/windowsinternal/find-kernel-module-address-todo
