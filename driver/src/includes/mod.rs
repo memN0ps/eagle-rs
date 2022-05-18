@@ -26,6 +26,7 @@ extern "system" {
 
     pub fn MmGetSystemRoutineAddress(system_routine_name: *mut UNICODE_STRING) -> PVOID;
 
+    pub fn PsGetCurrentProcess() -> HANDLE;
 }
 
 extern "system" {

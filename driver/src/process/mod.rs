@@ -5,7 +5,7 @@ use winapi::shared::ntdef::{NTSTATUS, NT_SUCCESS, PVOID, UNICODE_STRING};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
 use crate::includes::{PsLookupProcessByProcessId, ProcessProtectionInformation, ObfDereferenceObject, MmGetSystemRoutineAddress};
 use crate::string::create_unicode_string;
-
+pub mod hide;
 
 pub fn protect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
     //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
