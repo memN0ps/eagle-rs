@@ -6,6 +6,7 @@
 * Elevate / remove token privileges (Done)
 * Hide process (Done)
 * Hide driver (Done)
+* Enumerate loaded kernel modules (Done)
 * Enumerate / remove kernel callbacks
   * PsSetCreateProcessNotifyRoutine (Done)
   * PsSetCreateThreadNotifyRoutine (Todo)
