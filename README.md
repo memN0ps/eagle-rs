@@ -167,7 +167,7 @@ Bytes returned: 16
 fffff800`5a6683b8  0e
 ```
 
-## Example 3: Hide Process
+## Example 4: Hide Process
 
 ![CMD](./cmd_hide1.png)
 
@@ -180,7 +180,7 @@ PS C:\Users\memn0ps\Desktop> .\client.exe process --name powershell.exe --hide
 ![CMD](./cmd_hide2.png)
 
 
-## Hide Driver
+## Example 5: Hide Driver
 
 Hidden from ZwQuerySystemInformation and PsLoadedModuleList
 
