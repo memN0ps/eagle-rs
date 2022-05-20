@@ -5,7 +5,7 @@
 * Protect / unprotect process (Done)
 * Elevate / remove token privileges (Done)
 * Hide process (Done)
-* Hide driver (Todo)
+* Hide driver (Done)
 * Enumerate / remove kernel callbacks
   * PsSetCreateProcessNotifyRoutine (Done)
   * PsSetCreateThreadNotifyRoutine (Todo)
@@ -13,7 +13,6 @@
   * CmRegisterCallbackEx (Todo)
   * ObRegisterCallbacks (Todo)
 * DSE enable/disable (Done)
-* Kernel mode manual mapper (Todo)
 
 ## Usage
 

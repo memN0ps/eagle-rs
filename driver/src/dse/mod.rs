@@ -57,13 +57,14 @@ pub fn get_module_base(module_name: &[u8]) -> *mut c_void {
         let image_name = unsafe { (*module_info).modules[i].image_name };
         let image_base = unsafe { (*module_info).modules[i].image_base };
 
+        //log::info!("[+] Module name: {:?} and module base: {:?}", image_name.as_bstr(), image_base);
+
         if let Some(_) = image_name.find(module_name) {
             //log::info!("[+] Module name: {:?} and module base: {:?}", image_name, image_base);
             p_module = image_base;
             break;
         }
     }
-    log::info!("CI.DLL base address: {:?}", p_module);
 
     unsafe { ExFreePool(module_info as u64) };
 

