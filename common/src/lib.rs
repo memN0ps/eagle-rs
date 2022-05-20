@@ -22,6 +22,7 @@ pub const IOCTL_CALLBACKS_ZERO_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x8
 pub const IOCTL_DSE_ENABLE_DISABLE_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x808, METHOD_NEITHER, FILE_ANY_ACCESS);
 
 pub const IOCTL_DRIVER_HIDE_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x809, METHOD_NEITHER, FILE_ANY_ACCESS);
+pub const IOCTL_DRIVER_ENUM_REQUEST: u32 = CTL_CODE!(FILE_DEVICE_UNKNOWN, 0x810, METHOD_NEITHER, FILE_ANY_ACCESS);
 
 
 #[repr(C)]
@@ -54,4 +55,10 @@ pub struct TargetCallback {
 pub struct DriverSignatureEnforcement {
     pub address: u64,
     pub is_enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleInformation {
+    pub module_base: usize,
+    pub module_name: [u16; 256],
 }

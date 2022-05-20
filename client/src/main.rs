@@ -83,12 +83,16 @@ struct DSE {
 #[clap(group(
     ArgGroup::new("driver")
         .required(true)
-        .args(&["hide"]),
+        .args(&["hide", "enumerate"]),
 ))]
 struct Driver {
     /// Hide a driver using Direct Kernel Object Manipulation (DKOM)
     #[clap(long)]
     hide: bool,
+
+    /// Enumerate loaded kernel modules
+    #[clap(long, short)]
+    enumerate: bool,
 }
 
 fn main() {
@@ -148,6 +152,8 @@ fn main() {
         Commands::Driver(d) => {
             if d.hide {
                 kernel_interface::hide_driver(driver_handle);
+            } else if d.enumerate {
+                kernel_interface::get_loaded_modules_list(driver_handle);
             } else {
                 println!("[-] Invalid arguments");
             }

