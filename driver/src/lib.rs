@@ -111,7 +111,8 @@ pub extern "system" fn dispatch_device_control(device_object: &mut DEVICE_OBJECT
                 return complete_request(irp, status, information);
             }
 
-            let protect_process_status = protect_process(irp, stack);
+            let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
+            let protect_process_status = protect_process(target_process);
            
             if NT_SUCCESS(protect_process_status) {
                 log::info!("Process protection successful");
@@ -131,7 +132,8 @@ pub extern "system" fn dispatch_device_control(device_object: &mut DEVICE_OBJECT
                 return complete_request(irp, status, information);
             }
 
-            let unprotect_process_status = unprotect_process(irp, stack);
+            let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
+            let unprotect_process_status = unprotect_process(target_process);
            
             if NT_SUCCESS(unprotect_process_status) {
                 log::info!("Process unprotection successful");
@@ -144,7 +146,15 @@ pub extern "system" fn dispatch_device_control(device_object: &mut DEVICE_OBJECT
         },
         IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST => {
             log::info!("IOCTL_PROCESS_TOKEN_PRIVILEGES_REQUEST");
-            let token_privs_status = enable_all_token_privileges(irp, stack);
+
+            if unsafe { (*stack).Parameters.DeviceIoControl().InputBufferLength < size_of::<TargetProcess>() as u32 } {
+                status = STATUS_BUFFER_TOO_SMALL;
+                log::error!("STATUS_BUFFER_TOO_SMALL");
+                return complete_request(irp, status, information);
+            }
+
+            let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
+            let token_privs_status = enable_all_token_privileges(target_process);
            
             if NT_SUCCESS(token_privs_status) {
                 log::info!("Process token privileges successful");

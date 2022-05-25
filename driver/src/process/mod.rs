@@ -1,90 +1,67 @@
-use core::{ptr::null_mut};
 use common::TargetProcess;
-use winapi::km::wdm::{IRP, PEPROCESS, IO_STACK_LOCATION};
-use winapi::shared::ntdef::{NTSTATUS, NT_SUCCESS, PVOID, UNICODE_STRING};
+use winapi::shared::ntdef::{NTSTATUS, PVOID, UNICODE_STRING};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use crate::includes::{PsLookupProcessByProcessId, ProcessProtectionInformation, ObfDereferenceObject, MmGetSystemRoutineAddress};
+use crate::includes::{ProcessProtectionInformation, MmGetSystemRoutineAddress};
 use crate::string::create_unicode_string;
+
+use self::memory::Process;
 pub mod hide;
+pub mod memory;
 
-pub fn protect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
-    //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
-    let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
-    
-    let mut e_process: PEPROCESS = null_mut();
-    unsafe { log::info!("Process ID {:?}", (*target_process).process_id) };
+/// Add process protection
+pub fn protect_process(target_process: *mut TargetProcess) -> NTSTATUS {
 
-    let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
-
-    if !NT_SUCCESS(status) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    /*
-    dt nt!_EPROCESS
-        +0x878 SignatureLevel   : UChar
-        +0x879 SectionSignatureLevel : UChar
-        +0x87a Protection       : _PS_PROTECTION
-    */
+    let process = match unsafe { Process::by_id((*target_process).process_id as u64) } {
+        Some(p) => p,
+        None => return STATUS_UNSUCCESSFUL,
+    };
 
     let signature_level_offset = get_eprocess_signature_level_offset();
-    let ps_protection = unsafe { e_process.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
+    let ps_protection = unsafe { process.eprocess.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
 
-    // Add process protection
     unsafe { (*ps_protection).signature_level = 30 };
     unsafe { (*ps_protection).section_signature_level = 28 };
     unsafe { (*ps_protection).protection.protection_type = 2 };
     unsafe { (*ps_protection).protection.protection_signer = 6 };
 
-    unsafe { ObfDereferenceObject(e_process) };
 
     return STATUS_SUCCESS;
 }
 
-pub fn unprotect_process(_irp: &mut IRP, stack: *mut IO_STACK_LOCATION) -> NTSTATUS {
-    //let target_process = unsafe { (*irp.AssociatedIrp.SystemBuffer()) as *mut TargetProcess };
-    let target_process = unsafe { (*stack).Parameters.DeviceIoControl().Type3InputBuffer as *mut TargetProcess };
-    
-    let mut e_process: PEPROCESS = null_mut();
-    unsafe { log::info!("Process ID {:?}", (*target_process).process_id) };
+/// Remove process protection
+pub fn unprotect_process(target_process: *mut TargetProcess) -> NTSTATUS {
+        
+    let process = match unsafe { Process::by_id((*target_process).process_id as u64) } {
+        Some(p) => p,
+        None => return STATUS_UNSUCCESSFUL,
+    };
 
-    let status = unsafe { PsLookupProcessByProcessId((*target_process).process_id as *mut _, &mut e_process) };
-
-    if !NT_SUCCESS(status) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    /*
-    dt nt!_EPROCESS
-        +0x878 SignatureLevel   : UChar
-        +0x879 SectionSignatureLevel : UChar
-        +0x87a Protection       : _PS_PROTECTION
-    */
 
     let signature_level_offset = get_eprocess_signature_level_offset();
-    let ps_protection = unsafe { e_process.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
+    let ps_protection = unsafe { process.eprocess.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
 
-    // Add process protection
     unsafe { (*ps_protection).signature_level = 0 };
     unsafe { (*ps_protection).section_signature_level = 0 };
     unsafe { (*ps_protection).protection.protection_type = 0 };
     unsafe { (*ps_protection).protection.protection_signer = 0 };
 
-    unsafe { ObfDereferenceObject(e_process) };
 
     return STATUS_SUCCESS;
 }
 
-//The MmGetSystemRoutineAddress routine returns a pointer to a function specified by SystemRoutineName.
+/// Gets ta pointer to a function from ntoskrnl exports
 fn get_ntoskrnl_exports(function_name: *mut UNICODE_STRING) -> PVOID {
+    //The MmGetSystemRoutineAddress routine returns a pointer to a function specified by SystemRoutineName.
     return unsafe { MmGetSystemRoutineAddress(function_name) };
 }
 
+// Gets function base address
 pub fn get_function_base_address(function_name: *mut UNICODE_STRING) -> PVOID {
     let base = get_ntoskrnl_exports(function_name);
     return base;
 }
 
+/// Get EPROCESS.Protection offset dynamically
 #[allow(dead_code)]
 pub fn get_eprocess_protection_offset() -> isize {
     let unicode_function_name = &mut create_unicode_string(
@@ -101,6 +78,7 @@ pub fn get_eprocess_protection_offset() -> isize {
     return protection_offset as isize;
 }
 
+/// Get EPROCESS.SignatureLevel offset dynamically
 pub fn get_eprocess_signature_level_offset() -> isize {
     let unicode_function_name = &mut create_unicode_string(
         obfstr::wide!("PsGetProcessSignatureLevel\0")
