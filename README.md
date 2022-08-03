@@ -128,14 +128,21 @@ Total Kernel Callbacks: 10
 [9] 0xffffbd8d3f97104f ("peauth.sys")
 ```
 
-## Protect Process
+## Protect / Unprotect Process
 
 ```
 PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --protect
-[+] Process protected successfully 8248
+[+] Process protected successfully 2104
 ```
 
 ![Protect](./notepad_protect.png)
+
+```
+PS C:\Users\memn0ps\Desktop> .\client.exe process --name notepad.exe --unprotect
+[+] Process unprotected successfully 2104
+```
+
+![Protect](./notepad_unprotect.png)
 
 ## Elevate to NT AUTHORITY\\System and Enable All Token Privileges
 
@@ -454,7 +461,7 @@ I made this project for fun and because I really like Rust and Windows Internals
 * https://back.engineering/
 * https://www.vergiliusproject.com/kernels/x64
 * https://www.crowdstrike.com/blog/evolution-protected-processes-part-1-pass-hash-mitigations-windows-81/
-* https://discord.com/invite/rust-lang-community (Big thanks to: WithinRafael, Nick12, Zuix, DuckThatSits, matt1992, kpreid and many others)
+* https://discord.com/invite/rust-lang-community (Big thanks to: WithinRafael, Nick12, Zuix, DuckThatSits, matt1992, kpreid, Bruh and many others)
 * https://twitter.com/the_secret_club/status/1386215138148196353 Discord (hugsy, themagicalgamer)
 * https://www.rust-lang.org/
 * https://doc.rust-lang.org/book/
