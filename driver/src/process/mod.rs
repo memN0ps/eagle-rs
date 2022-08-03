@@ -1,7 +1,7 @@
 use common::TargetProcess;
 use winapi::shared::ntdef::{NTSTATUS, PVOID, UNICODE_STRING};
 use winapi::shared::ntstatus::{STATUS_SUCCESS, STATUS_UNSUCCESSFUL};
-use crate::includes::{ProcessProtectionInformation, MmGetSystemRoutineAddress};
+use crate::includes::{ProcessProtectionInformation, MmGetSystemRoutineAddress, PSProtection};
 use crate::string::create_unicode_string;
 
 use self::memory::Process;
@@ -19,11 +19,11 @@ pub fn protect_process(target_process: *mut TargetProcess) -> NTSTATUS {
     let signature_level_offset = get_eprocess_signature_level_offset();
     let ps_protection = unsafe { process.eprocess.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
 
-    unsafe { (*ps_protection).signature_level = 30 };
-    unsafe { (*ps_protection).section_signature_level = 28 };
-    unsafe { (*ps_protection).protection.protection_type = 2 };
-    unsafe { (*ps_protection).protection.protection_signer = 6 };
-
+    unsafe { 
+        (*ps_protection).signature_level = 0x3f;
+        (*ps_protection).section_signature_level = 0x3f;
+        (*ps_protection).protection = PSProtection::new().with_protection_type(2).with_protection_audit(0).with_protection_signer(6);
+    }
 
     return STATUS_SUCCESS;
 }
@@ -40,10 +40,11 @@ pub fn unprotect_process(target_process: *mut TargetProcess) -> NTSTATUS {
     let signature_level_offset = get_eprocess_signature_level_offset();
     let ps_protection = unsafe { process.eprocess.cast::<u8>().offset(signature_level_offset) as *mut ProcessProtectionInformation };
 
-    unsafe { (*ps_protection).signature_level = 0 };
-    unsafe { (*ps_protection).section_signature_level = 0 };
-    unsafe { (*ps_protection).protection.protection_type = 0 };
-    unsafe { (*ps_protection).protection.protection_signer = 0 };
+    unsafe { 
+        (*ps_protection).signature_level = 0;
+        (*ps_protection).section_signature_level = 0;
+        (*ps_protection).protection = PSProtection::new().with_protection_type(0).with_protection_audit(0).with_protection_signer(0);
+    }
 
 
     return STATUS_SUCCESS;

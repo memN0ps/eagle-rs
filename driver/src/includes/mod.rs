@@ -1,3 +1,7 @@
+use modular_bitfield::bitfield;
+use modular_bitfield::specifiers::B3;
+use modular_bitfield::specifiers::B1;
+use modular_bitfield::specifiers::B4;
 use winapi::{shared::{ntdef::{HANDLE, BOOLEAN, NTSTATUS, ULONG, PVOID, PCUNICODE_STRING, UNICODE_STRING, LARGE_INTEGER, LIST_ENTRY, CSHORT}, basetsd::SIZE_T, minwindef::{USHORT, PULONG}}, km::wdm::{KEVENT, KSPIN_LOCK, PDEVICE_OBJECT, PEPROCESS}, um::winnt::PACCESS_TOKEN, ctypes::c_void};
 
 #[link(name = "aux_klib", kind = "static")]
@@ -70,25 +74,21 @@ pub struct ProcessPrivileges {
 }
 
 #[repr(C)]
+#[bitfield]
 #[derive(Debug, Clone, Copy)]
 pub struct PSProtection {
-    pub protection_type: u8,
-    pub protection_audit: u8,
-    pub protection_signer: u8,
+    pub protection_type: B3,
+    pub protection_audit: B1,
+    pub protection_signer: B4,
 }
 
-impl Default for PSProtection {
-    fn default() -> Self {
-        Self { protection_type: 3, protection_audit: 1, protection_signer: 4 }
-    }
-}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct ProcessProtectionInformation {
     pub signature_level: u8,
-	pub section_signature_level: u8,
-	pub protection: PSProtection,
+    pub section_signature_level: u8,
+    pub protection: PSProtection,
 }
 
 
