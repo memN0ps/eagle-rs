@@ -1,4 +1,4 @@
-# Windows Kernel Driver in Rust (Rusty Rootkit) for Red Teamers
+# Windows Kernel Rookit in Rust
 
 Blog: https://memn0ps.github.io/rusty-windows-kernel-rootkit/
 
